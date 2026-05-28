@@ -1,0 +1,46 @@
+# Build outputs
+build/
+out/
+cmake-build-*/
+Builds/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.sln.docstates
+Debug/
+Release/
+x64/
+x86/
+
+# JetBrains
+.idea/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Plugin install copies (we set COPY_PLUGIN_AFTER_BUILD FALSE, but just in case)
+*.vst3
+*.component
+*.app
+
+# Generated/Embedded resources
+JuceLibraryCode/

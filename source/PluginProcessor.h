@@ -1,0 +1,168 @@
+#pragma once
+
+#include "dsp/voice/VoiceManager.h"
+#include "dsp/effects/Delay.h"
+#include "dsp/effects/Chorus.h"
+#include "dsp/util/AudioVizBuffer.h"
+#include "params/Params.h"
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_dsp/juce_dsp.h>
+
+namespace bacillum
+{
+    class PluginProcessor final : public juce::AudioProcessor
+    {
+    public:
+        PluginProcessor();
+        ~PluginProcessor() override = default;
+
+        void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+        void releaseResources() override {}
+
+        bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+
+        void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override;
+        using juce::AudioProcessor::processBlock;
+
+        juce::AudioProcessorEditor* createEditor() override;
+        bool hasEditor() const override { return true; }
+
+        const juce::String getName() const override { return "Bacillum"; }
+        bool acceptsMidi()  const override { return true; }
+        bool producesMidi() const override { return false; }
+        bool isMidiEffect() const override { return false; }
+        double getTailLengthSeconds() const override { return 3.0; }  // for reverb tail
+
+        int getNumPrograms() override        { return 1; }
+        int getCurrentProgram() override     { return 0; }
+        void setCurrentProgram (int) override {}
+        const juce::String getProgramName (int) override { return {}; }
+        void changeProgramName (int, const juce::String&) override {}
+
+        void getStateInformation (juce::MemoryBlock& dest) override;
+        void setStateInformation (const void* data, int sizeInBytes) override;
+
+        juce::AudioProcessorValueTreeState& getAPVTS() noexcept { return apvts; }
+        juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
+        const dsp::AudioVizBuffer& getVizBuffer() const noexcept { return vizBuffer; }
+        double getCurrentSampleRate() const noexcept { return currentSampleRate; }
+
+    private:
+        void handleMidiEvent (const juce::MidiMessage& m) noexcept;
+        void snapshotVoiceParams (dsp::VoiceParams& out) const noexcept;
+        void applyUnisonSetting() noexcept;
+        void renderSubBlock (juce::AudioBuffer<float>& buffer, int start, int numSamples);
+        void applyFxBus (juce::AudioBuffer<float>& buffer, int start, int numSamples);
+
+        // Helper: load APVTS choice index, clamped.
+        template <typename EnumT>
+        EnumT loadChoice (std::atomic<float>* p, int maxExclusive) const noexcept
+        {
+            return static_cast<EnumT>(juce::jlimit (0, maxExclusive - 1, static_cast<int>(p->load())));
+        }
+
+        juce::AudioProcessorValueTreeState apvts;
+        juce::MidiKeyboardState keyboardState;
+
+        // ----- Cached APVTS pointers ----------------------------------------
+        std::atomic<float>* pMasterGain    { nullptr };
+        std::atomic<float>* pMasterPan     { nullptr };
+
+        std::atomic<float>* pOsc1Waveform   { nullptr };
+        std::atomic<float>* pOsc1Pitch      { nullptr };
+        std::atomic<float>* pOsc1Detune     { nullptr };
+        std::atomic<float>* pOsc1Pulsewidth { nullptr };
+        std::atomic<float>* pOsc1Level      { nullptr };
+
+        std::atomic<float>* pOsc2Waveform   { nullptr };
+        std::atomic<float>* pOsc2Pitch      { nullptr };
+        std::atomic<float>* pOsc2Detune     { nullptr };
+        std::atomic<float>* pOsc2Pulsewidth { nullptr };
+        std::atomic<float>* pOsc2Level      { nullptr };
+
+        std::atomic<float>* pSubLevel       { nullptr };
+        std::atomic<float>* pSubWaveform    { nullptr };
+        std::atomic<float>* pSubOctave      { nullptr };
+        std::atomic<float>* pHyperDetune    { nullptr };
+        std::atomic<float>* pHyperMix       { nullptr };
+        std::atomic<float>* pNoiseType      { nullptr };
+        std::atomic<float>* pNoiseLevel     { nullptr };
+
+        std::atomic<float>* pChorusMode     { nullptr };
+        std::atomic<float>* pChorusMix      { nullptr };
+        std::atomic<float>* pChorusRate     { nullptr };
+        std::atomic<float>* pChorusDepth    { nullptr };
+        std::atomic<float>* pChorusFeedback { nullptr };
+
+        std::atomic<float>* pFilterMode     { nullptr };
+        std::atomic<float>* pFilterCutoff   { nullptr };
+        std::atomic<float>* pFilterRes      { nullptr };
+        std::atomic<float>* pFilterDrive    { nullptr };
+        std::atomic<float>* pFilterKeytrack { nullptr };
+        std::atomic<float>* pFilterEnvAmt   { nullptr };
+        std::atomic<float>* pFilterVelAmt   { nullptr };
+
+        std::atomic<float>* pFilterAttack   { nullptr };
+        std::atomic<float>* pFilterDecay    { nullptr };
+        std::atomic<float>* pFilterSustain  { nullptr };
+        std::atomic<float>* pFilterRelease  { nullptr };
+
+        std::atomic<float>* pAmpAttack      { nullptr };
+        std::atomic<float>* pAmpDecay       { nullptr };
+        std::atomic<float>* pAmpSustain     { nullptr };
+        std::atomic<float>* pAmpRelease     { nullptr };
+
+        std::atomic<float>* pLfo1Shape      { nullptr };
+        std::atomic<float>* pLfo1Rate       { nullptr };
+        std::atomic<float>* pLfo1FadeIn     { nullptr };
+        std::atomic<float>* pLfo1ToCutoff   { nullptr };
+        std::atomic<float>* pLfo1ToPitch    { nullptr };
+        std::atomic<float>* pLfo1ToAmp      { nullptr };
+
+        std::atomic<float>* pUnisonCount    { nullptr };
+        std::atomic<float>* pUnisonDetune   { nullptr };
+        std::atomic<float>* pUnisonSpread   { nullptr };
+
+        std::atomic<float>* pDelayMix       { nullptr };
+        std::atomic<float>* pDelayTimeL     { nullptr };
+        std::atomic<float>* pDelayTimeR     { nullptr };
+        std::atomic<float>* pDelayFeedback  { nullptr };
+        std::atomic<float>* pDelayPingPong  { nullptr };
+        std::atomic<float>* pDelayDamp      { nullptr };
+
+        std::atomic<float>* pReverbMix      { nullptr };
+        std::atomic<float>* pReverbSize     { nullptr };
+        std::atomic<float>* pReverbDamping  { nullptr };
+        std::atomic<float>* pReverbWidth    { nullptr };
+
+        std::atomic<float>* pPolyMode       { nullptr };
+        std::atomic<float>* pPitchBendRange { nullptr };
+
+        // ----- Bus state -----------------------------------------------------
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> masterGain;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> masterPanL;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> masterPanR;
+
+        dsp::VoiceManager voiceManager;
+        dsp::ChorusFx     chorus;
+        dsp::StereoDelay  delay;
+        juce::Reverb      reverb;
+        dsp::AudioVizBuffer vizBuffer;
+
+        // ----- Per-block runtime state ---------------------------------------
+        float currentSampleRate    { 48000.0f };
+        float currentPitchBendNorm { 0.0f };
+        float currentModWheel01    { 0.0f };
+        float currentAftertouch01  { 0.0f };
+
+        // Last applied unison config — used to avoid re-applying every block.
+        int   lastUnisonCount { 1 };
+        float lastUnisonDetune{ 7.0f };
+        float lastUnisonSpread{ 0.5f };
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    };
+}
