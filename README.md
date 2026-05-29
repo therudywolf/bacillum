@@ -21,13 +21,16 @@ root@bacillum:~$ ./synth -mode poly -voices 16 -engine VA
 | OSC1 / OSC2 | done | PolyBLEP-band-limited Sine / Triangle / Saw / Square+PWM / **HyperSaw** (7-voice Roland-JP8000-style supersaw). Pitch ±24 semi, detune ±50 cents, level. |
 | Sub osc | done | Independent sine / triangle / square, -1 or -2 octave switch, own level. |
 | Noise | done | White (xorshift32, per-note seed) + pink (Paul Kellet). |
-| Filter | done | TPT State-Variable (Cytomic / Andy Simper): LP12, **LP24** cascade, HP, BP, Notch, Peak. Drive (tanh) pre-filter. |
+| Filter | done | Two models, selectable per patch: **Cytomic TPT SVF** (LP12, LP24 cascade, HP, BP, Notch, Peak) and **Moog ladder** (Huovilainen 2004, thermal non-linear, 2× oversampled — LP24/LP12). Drive (tanh) pre-filter. |
 | Filter envelope | done | Linear ADSR, ±5 octaves cutoff mod, key-tracking, velocity-to-cutoff. |
 | Amp envelope | done | Linear ADSR with soft-retrigger (no clicks on overlapping notes), velocity-squared response. |
-| LFO 1 | done | Per-voice key-triggered; 8 shapes (sine/tri/saw↑/saw↓/square/PWM/S&H/smooth-random); fade-in; routings to cutoff (±5 oct), pitch (±12 semi), amp (tremolo); mod-wheel scales all depths (fixed routing). |
+| LFO 1 | done | Per-voice key-triggered; 8 shapes (sine/tri/saw↑/saw↓/square/PWM/S&H/smooth-random); fade-in; free or **tempo-synced** (1/1…1/32, dotted/triplet); routings to cutoff (±5 oct), pitch (±12 semi), amp (tremolo). Mod-wheel **adds** vibrato on top (Virus/Nord-style), so LFO knobs always work standalone. |
+| Glide / portamento | done | Per-voice fractional-note glide that chases the target at control rate; unison stacks slide together; seeded from the last played note. |
 | Unison | done | 1–8 voices per note, symmetric cents detune, equal-power stereo spread per pair. |
-| Glide / mono / legato | done | Mono + legato note priority (last). |
-| Pitch bend, sustain, AT, panic | done | Sample-accurate MIDI dispatch in `processBlock`. |
+| Mono / legato / poly | done | Note priority last; legato re-uses the voice without re-triggering envelopes. |
+| Arpeggiator | done | Up / Down / Up-Down / Random / As-Played; tempo-locked rate (1/1…1/32), 1–4 octave range, gate length. Runs as a sample-accurate MIDI transformer before the engine. |
+| Tempo sync | done | LFO1, delay and arp lock to host BPM via `AudioPlayHead` (fallback 120). |
+| Pitch bend, sustain, AT, mod-wheel, panic | done | Sample-accurate MIDI dispatch in `processBlock`. |
 
 ### FX bus
 
@@ -36,8 +39,16 @@ Voice mix → Chorus/Flanger/Phaser → Stereo Delay → Reverb → Master gain 
 | FX | Status | Notes |
 |---|---|---|
 | Chorus / Flanger / Phaser | done | One unit with mode select. Quadrature LFO (90° L/R offset), Lagrange-3 delay line, 6-stage allpass cascade for phaser. |
-| Delay | done | Stereo with independent L/R times, ping-pong cross-feedback, damping LP in feedback path. |
+| Delay | done | Stereo with independent L/R times (or **tempo-synced**), ping-pong cross-feedback, damping LP in feedback path. |
 | Reverb | done | `juce::Reverb` (Freeverb-derived). Plate / Dattorro implementation planned. |
+
+### Presets
+
+| | Notes |
+|---|---|
+| Factory bank | 24 code-defined patches across Init / Bass / Lead / Pad / Keys / Pluck / Brass / Strings / Arp / Sequence / FX. Sparse override model (each patch only stores what differs from Init), applied on top of a full reset-to-defaults. |
+| Browser | Header bar with `< [Category / Name ▼] >` — prev/next + dropdown. Loading drives the APVTS so every knob animates to the new value. |
+| State | Full plugin state saved/restored as APVTS XML (`getStateInformation`). |
 
 ### Visualisation (real-time)
 
@@ -63,8 +74,9 @@ without blocking the audio path.
   Consolas mono everywhere, sharp angular sections with cyan accent stripes,
   terminal-style header (`root@bacillum:~$ ...` with blinking caret),
   concentric cyber knobs with bipolar fill-from-centre.
-- Resizable (960×720 → 2200×1400).
-- All ~60 parameters in APVTS, host-automatable, state save/load via XML.
+- Preset browser bar, ARP panel, oscilloscope + spectrum analyser.
+- Resizable (980×760 → 2200×1500).
+- ~80 parameters in APVTS, host-automatable, state save/load via XML.
 
 ---
 
@@ -170,7 +182,7 @@ Code-level citations are inline in the relevant headers.
   Foundational text on zero-delay-feedback / TPT filter design.
   <https://www.discodsp.net/VAFilterDesign_2.1.2.pdf>
 - **Antti Huovilainen**, *"Non-linear digital implementation of the Moog ladder filter"*,
-  DAFx 2004. — Used by Bacillum's planned ladder filter.
+  DAFx 2004. — Bacillum's Moog ladder filter (thermal formulation, 2× oversampled).
   <https://www.dafx.de/paper-archive/2004/P_061.PDF>
 - **Robert Bristow-Johnson**, *"Audio EQ Cookbook"*. — RBJ biquad coefficients used in
   the planned 3-band EQ.

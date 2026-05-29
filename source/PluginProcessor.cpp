@@ -102,11 +102,13 @@ namespace bacillum
     {
         currentSampleRate = static_cast<float>(sampleRate);
         voiceManager.prepare (sampleRate);
+        arp.prepare (sampleRate);
         chorus.prepare (sampleRate, samplesPerBlock);
         delay.prepare (sampleRate, 4.0);
         reverb.setSampleRate (sampleRate);
         reverb.reset();
         vizBuffer.reset();
+        workMidi.ensureSize (2048);   // pre-grow so processBlock never allocates
 
         masterGain.reset (sampleRate, 0.02);
         masterPanL.reset (sampleRate, 0.02);
@@ -356,6 +358,24 @@ namespace bacillum
             vizBuffer.push (L + start, L + start, numSamples);
     }
 
+    void PluginProcessor::renderFromMidi (juce::AudioBuffer<float>& buffer,
+                                          juce::MidiBuffer& midi, int numSamples)
+    {
+        int cursor = 0;
+        for (const auto meta : midi)
+        {
+            const int eventTime = juce::jlimit (0, numSamples, meta.samplePosition);
+            if (eventTime > cursor)
+            {
+                renderSubBlock (buffer, cursor, eventTime - cursor);
+                cursor = eventTime;
+            }
+            handleMidiEvent (meta.getMessage());
+        }
+        if (cursor < numSamples)
+            renderSubBlock (buffer, cursor, numSamples - cursor);
+    }
+
     void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
     {
         juce::ScopedNoDenormals noDenormals;
@@ -372,22 +392,48 @@ namespace bacillum
                 if (auto bpm = pos->getBpm())
                     currentBpm = static_cast<float>(*bpm);
 
-        // Inject MIDI from on-screen / PC keyboard.
+        // Inject MIDI from on-screen / PC keyboard into the incoming stream.
         keyboardState.processNextMidiBuffer (midi, 0, numSamples, true);
 
-        int cursor = 0;
-        for (const auto meta : midi)
+        // --- Arpeggiator: transform the MIDI stream before rendering -------
+        const bool arpOn = pArpOn->load() > 0.5f;
+        arp.setEnabled (arpOn);
+
+        workMidi.clear();
+
+        if (arpOn)
         {
-            const int eventTime = juce::jlimit (0, numSamples, meta.samplePosition);
-            if (eventTime > cursor)
+            arp.setParams (loadChoice<params::ArpMode>(pArpMode, (int) params::ArpMode::NumModes),
+                           params::syncBeats (loadChoice<params::SyncDivision>(
+                                pArpRate, (int) params::SyncDivision::NumDivisions)),
+                           static_cast<int>(pArpOctaves->load()),
+                           pArpGate->load(),
+                           currentBpm);
+
+            for (const auto meta : midi)
             {
-                renderSubBlock (buffer, cursor, eventTime - cursor);
-                cursor = eventTime;
+                const auto msg = meta.getMessage();
+                if (msg.isNoteOn())
+                    arp.noteOn (msg.getNoteNumber(), msg.getFloatVelocity());
+                else if (msg.isNoteOff())
+                    arp.noteOff (msg.getNoteNumber());
+                else if (msg.isAllNotesOff() || msg.isAllSoundOff())
+                {
+                    arp.allNotesOff();
+                    workMidi.addEvent (msg, meta.samplePosition);  // still stop voices
+                }
+                else
+                    workMidi.addEvent (msg, meta.samplePosition);  // CC / bend / AT pass-through
             }
-            handleMidiEvent (meta.getMessage());
+            arp.process (workMidi, numSamples);   // injects arp note on/off
         }
-        if (cursor < numSamples)
-            renderSubBlock (buffer, cursor, numSamples - cursor);
+        else
+        {
+            workMidi.addEvents (midi, 0, numSamples, 0);
+            arp.process (workMidi, numSamples);   // flushes a leftover arp note-off, if any
+        }
+
+        renderFromMidi (buffer, workMidi, numSamples);
 
         // FX bus runs once over the whole block — stable delay / reverb behaviour.
         applyFxBus (buffer, 0, numSamples);

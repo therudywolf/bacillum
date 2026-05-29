@@ -1,0 +1,25 @@
+# Normalise line endings: store LF in the repo, check out native on each OS.
+* text=auto
+
+# Source / text files are LF in the repository.
+*.cpp   text eol=lf
+*.h     text eol=lf
+*.txt   text eol=lf
+*.cmake text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.svg   text eol=lf
+
+# Binary assets — never touch.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.wav  binary
+*.ttf  binary
+*.otf  binary
+*.vst3 binary

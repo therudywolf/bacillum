@@ -3,6 +3,7 @@
 #include "dsp/voice/VoiceManager.h"
 #include "dsp/effects/Delay.h"
 #include "dsp/effects/Chorus.h"
+#include "dsp/arp/Arpeggiator.h"
 #include "dsp/util/AudioVizBuffer.h"
 #include "params/Params.h"
 
@@ -54,6 +55,7 @@ namespace bacillum
         void handleMidiEvent (const juce::MidiMessage& m) noexcept;
         void snapshotVoiceParams (dsp::VoiceParams& out) const noexcept;
         void applyUnisonSetting() noexcept;
+        void renderFromMidi (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, int numSamples);
         void renderSubBlock (juce::AudioBuffer<float>& buffer, int start, int numSamples);
         void applyFxBus (juce::AudioBuffer<float>& buffer, int start, int numSamples);
 
@@ -157,10 +159,14 @@ namespace bacillum
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> masterPanR;
 
         dsp::VoiceManager voiceManager;
+        dsp::Arpeggiator  arp;
         dsp::ChorusFx     chorus;
         dsp::StereoDelay  delay;
         juce::Reverb      reverb;
         dsp::AudioVizBuffer vizBuffer;
+
+        // Scratch MIDI buffer for arp/keyboard merging (reused; clear() keeps capacity).
+        juce::MidiBuffer  workMidi;
 
         // ----- Per-block runtime state ---------------------------------------
         float currentSampleRate    { 48000.0f };

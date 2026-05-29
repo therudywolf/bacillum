@@ -2,9 +2,15 @@
 
 namespace bacillum
 {
+    static constexpr int kHeaderH    = 44;
+    static constexpr int kStripH     = 3;
+    static constexpr int kPresetBarH = 30;
+
     PluginEditor::PluginEditor (PluginProcessor& p)
         : juce::AudioProcessorEditor (&p),
           processor (p),
+          presetManager (p, p.getAPVTS()),
+
           osc1Wave   (p.getAPVTS(), params::ids::osc1Waveform,   "WAVE"),
           osc1Pitch  (p.getAPVTS(), params::ids::osc1Pitch,      "PITCH"),
           osc1Detune (p.getAPVTS(), params::ids::osc1Detune,     "DETUNE"),
@@ -47,6 +53,7 @@ namespace bacillum
           ampR  (p.getAPVTS(), params::ids::ampRelease,    "R"),
 
           lfo1Shape    (p.getAPVTS(), params::ids::lfo1Shape,    "SHAPE"),
+          lfo1Sync     (p.getAPVTS(), params::ids::lfo1Sync,     "SYNC"),
           lfo1Rate     (p.getAPVTS(), params::ids::lfo1Rate,     "RATE"),
           lfo1ToCutoff (p.getAPVTS(), params::ids::lfo1ToCutoff, "> CUT"),
           lfo1ToPitch  (p.getAPVTS(), params::ids::lfo1ToPitch,  "> PITCH"),
@@ -59,6 +66,7 @@ namespace bacillum
           chorusDepth    (p.getAPVTS(), params::ids::chorusDepth,    "DEPTH"),
           chorusFeedback (p.getAPVTS(), params::ids::chorusFeedback, "FB"),
 
+          delaySync     (p.getAPVTS(), params::ids::delaySync,     "SYNC"),
           delayMix      (p.getAPVTS(), params::ids::delayMix,      "MIX"),
           delayTimeL    (p.getAPVTS(), params::ids::delayTimeL,    "T.L"),
           delayTimeR    (p.getAPVTS(), params::ids::delayTimeR,    "T.R"),
@@ -70,8 +78,14 @@ namespace bacillum
           reverbDamping (p.getAPVTS(), params::ids::reverbDamping, "DAMP"),
           reverbWidth   (p.getAPVTS(), params::ids::reverbWidth,   "WIDTH"),
 
+          arpMode    (p.getAPVTS(), params::ids::arpMode,    "MODE"),
+          arpRate    (p.getAPVTS(), params::ids::arpRate,    "RATE"),
+          arpOctaves (p.getAPVTS(), params::ids::arpOctaves, "OCT"),
+          arpGate    (p.getAPVTS(), params::ids::arpGate,    "GATE"),
+
           masterGain (p.getAPVTS(), params::ids::masterGain, "GAIN"),
           masterPan  (p.getAPVTS(), params::ids::masterPan,  "PAN"),
+          glide      (p.getAPVTS(), params::ids::glideTime,  "GLIDE"),
           polyMode   (p.getAPVTS(), params::ids::polyMode,   "MODE"),
 
           keyboard (p.getKeyboardState(), juce::MidiKeyboardComponent::horizontalKeyboard),
@@ -85,13 +99,12 @@ namespace bacillum
         for (auto* r : { &filterRes, &filterDrive, &delayFB, &masterGain, &chorusFeedback })
             r->slider.setColour (juce::Slider::rotarySliderFillColourId, gui::Palette::blood());
 
-        // Visualisers sync sample rate.
         scope.setSampleRate    (p.getCurrentSampleRate());
         analyzer.setSampleRate (p.getCurrentSampleRate());
 
-        setSize (1200, 980);
+        setSize (1200, 1010);
         setResizable (true, true);
-        setResizeLimits (960, 720, 2200, 1400);
+        setResizeLimits (980, 760, 2200, 1500);
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
                          &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
@@ -105,14 +118,26 @@ namespace bacillum
                          &chorusMix, &chorusRate, &chorusDepth, &chorusFeedback,
                          &delayMix, &delayTimeL, &delayTimeR, &delayFB, &delayPingPong,
                          &reverbMix, &reverbSize, &reverbDamping, &reverbWidth,
-                         &masterGain, &masterPan })
+                         &arpOctaves, &arpGate,
+                         &masterGain, &masterPan, &glide })
             addAndDisplay (*r);
 
         for (auto* c : { &osc1Wave, &osc2Wave,
                          &subWaveform, &subOctave,
-                         &noiseType, &filterMode, &lfo1Shape,
-                         &chorusMode, &polyMode })
+                         &noiseType, &filterMode,
+                         &lfo1Shape, &lfo1Sync,
+                         &chorusMode, &delaySync,
+                         &arpMode, &arpRate, &polyMode })
             addAndDisplay (*c);
+
+        // Arp on/off toggle.
+        arpOnButton.setColour (juce::ToggleButton::textColourId,  gui::Palette::bone());
+        arpOnButton.setColour (juce::ToggleButton::tickColourId,  gui::Palette::cyan());
+        arpOnButton.setColour (juce::ToggleButton::tickDisabledColourId, gui::Palette::grid());
+        addAndMakeVisible (arpOnButton);
+        arpOnAttach = std::make_unique<BAtt> (p.getAPVTS(), params::ids::arpOn, arpOnButton);
+
+        buildPresetBar();
 
         keyboard.setKeyPressBaseOctave (4);
         keyboard.setLowestVisibleKey (24);
@@ -139,10 +164,36 @@ namespace bacillum
         juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
     }
 
+    void PluginEditor::buildPresetBar()
+    {
+        presetCombo.clear (juce::dontSendNotification);
+        int itemId = 1;
+        for (const auto& name : presetManager.getDisplayNames())
+            presetCombo.addItem (name, itemId++);
+        presetCombo.setSelectedId (presetManager.getCurrentIndex() + 1, juce::dontSendNotification);
+
+        presetCombo.onChange = [this]()
+        {
+            const int idx = presetCombo.getSelectedId() - 1;
+            if (idx >= 0) presetManager.load (idx);
+        };
+        presetPrev.onClick = [this]() { presetManager.loadPrev(); refreshPresetCombo(); };
+        presetNext.onClick = [this]() { presetManager.loadNext(); refreshPresetCombo(); };
+
+        for (auto* b : { &presetPrev, &presetNext })
+            addAndMakeVisible (*b);
+        addAndMakeVisible (presetCombo);
+    }
+
+    void PluginEditor::refreshPresetCombo()
+    {
+        presetCombo.setSelectedId (presetManager.getCurrentIndex() + 1, juce::dontSendNotification);
+    }
+
     void PluginEditor::timerCallback()
     {
         caretOn = ! caretOn;
-        repaint (0, 0, getWidth(), 56);
+        repaint (0, 0, getWidth(), kHeaderH + 2);
     }
 
     bool PluginEditor::keyPressed (const juce::KeyPress& key)    { return keyboard.keyPressed (key); }
@@ -226,25 +277,33 @@ namespace bacillum
         g.setColour (gui::Palette::bone());
         g.setFont (juce::Font (juce::FontOptions ("Consolas", 11.0f, juce::Font::bold)));
         g.drawText (s.title, titleArea, juce::Justification::centredLeft);
-
-        const int cx = r.getRight() - 6;
-        const int cy = r.getY() - 13;
-        g.setColour (gui::Palette::cyan());
-        g.drawHorizontalLine (cy, (float) cx - 3, (float) cx + 3);
-        g.drawVerticalLine   (cx, (float) cy - 3, (float) cy + 3);
     }
 
     void PluginEditor::paint (juce::Graphics& g)
     {
         g.fillAll (gui::Palette::voidBg());
 
-        drawGrid (g, getLocalBounds().withTrimmedTop (56).withTrimmedBottom (110));
+        const int bodyTop = kHeaderH + kStripH + kPresetBarH;
+        drawGrid (g, getLocalBounds().withTrimmedTop (bodyTop).withTrimmedBottom (110));
 
-        drawHeader (g, getLocalBounds().removeFromTop (44));
+        drawHeader (g, getLocalBounds().removeFromTop (kHeaderH));
+
+        // red / cyan strip under header
         g.setColour (gui::Palette::blood());
-        g.fillRect (0, 44, getWidth(), 2);
+        g.fillRect (0, kHeaderH, getWidth(), 2);
         g.setColour (gui::Palette::cyan().withAlpha (0.4f));
-        g.fillRect (0, 46, getWidth(), 1);
+        g.fillRect (0, kHeaderH + 2, getWidth(), 1);
+
+        // preset bar background
+        juce::Rectangle<int> bar (0, kHeaderH + kStripH, getWidth(), kPresetBarH);
+        g.setColour (gui::Palette::inkBg());
+        g.fillRect (bar);
+        g.setColour (gui::Palette::cyanDim());
+        g.fillRect (bar.getX(), bar.getBottom() - 1, bar.getWidth(), 1);
+        g.setColour (gui::Palette::cyan());
+        g.setFont (juce::Font (juce::FontOptions ("Consolas", 12.0f, juce::Font::bold)));
+        g.drawText ("PRESET", bar.withTrimmedLeft (10).withWidth (70),
+                    juce::Justification::centredLeft);
 
         for (auto& s : sections)
             if (! s.bounds.isEmpty())
@@ -268,7 +327,18 @@ namespace bacillum
     void PluginEditor::resized()
     {
         auto bounds = getLocalBounds();
-        bounds.removeFromTop (44 + 3);
+        bounds.removeFromTop (kHeaderH + kStripH);
+
+        // Preset bar.
+        {
+            auto bar = bounds.removeFromTop (kPresetBarH).reduced (8, 4);
+            bar.removeFromLeft (70);   // "PRESET" caption (painted)
+            presetPrev.setBounds (bar.removeFromLeft (28));
+            bar.removeFromLeft (4);
+            presetNext.setBounds (bar.removeFromRight (28));
+            bar.removeFromRight (4);
+            presetCombo.setBounds (bar.removeFromLeft (juce::jmin (440, bar.getWidth())));
+        }
 
         // Keyboard at bottom.
         const int kbH = 100;
@@ -276,12 +346,11 @@ namespace bacillum
 
         auto body = bounds.reduced (8);
 
-        // Reserve bottom strip for visualisers.
+        // Visualiser strip.
         const int vizH = 170;
         auto vizStrip = body.removeFromBottom (vizH);
-        body.removeFromBottom (6);   // gap
+        body.removeFromBottom (6);
 
-        // 4 cols × 4 rows
         const int cols = 4, rows = 4, gap = 6;
         const int colW = (body.getWidth()  - (cols - 1) * gap) / cols;
         const int rowH = (body.getHeight() - (rows - 1) * gap) / rows;
@@ -295,36 +364,36 @@ namespace bacillum
         };
 
         // Row 0 ─ source
-        sections[0]  = { "// OSC.1",            sectionRect (0, 0) };
-        sections[1]  = { "// OSC.2",            sectionRect (1, 0) };
-        sections[2]  = { "// SUB + HYPER",      sectionRect (2, 0) };
-        sections[3]  = { "// NOISE + UNISON",   sectionRect (3, 0) };
+        sections[0]  = { "// OSC.1",          sectionRect (0, 0) };
+        sections[1]  = { "// OSC.2",          sectionRect (1, 0) };
+        sections[2]  = { "// SUB + HYPER",    sectionRect (2, 0) };
+        sections[3]  = { "// NOISE + UNISON", sectionRect (3, 0) };
         // Row 1 ─ filter chain
-        sections[4]  = { "// FILTER",           sectionRect (0, 1) };
-        sections[5]  = { "// FILT.ENV",         sectionRect (1, 1) };
-        sections[6]  = { "// FILT.MOD",         sectionRect (2, 1) };
-        sections[7]  = { "// LFO.1",            sectionRect (3, 1) };
+        sections[4]  = { "// FILTER",         sectionRect (0, 1) };
+        sections[5]  = { "// FILT.ENV",       sectionRect (1, 1) };
+        sections[6]  = { "// FILT.MOD",       sectionRect (2, 1) };
+        sections[7]  = { "// LFO.1",          sectionRect (3, 1) };
         // Row 2 ─ amp + FX
-        sections[8]  = { "// AMP.ENV",          sectionRect (0, 2) };
-        sections[9]  = { "// CHORUS",           sectionRect (1, 2) };
-        sections[10] = { "// DELAY",            sectionRect (2, 2) };
-        sections[11] = { "// REVERB",           sectionRect (3, 2) };
-        // Row 3 ─ master + perf
-        sections[12] = { "// MASTER",           sectionRect (0, 3) };
-        sections[13] = { "// PERF",             sectionRect (1, 3) };
+        sections[8]  = { "// AMP.ENV",        sectionRect (0, 2) };
+        sections[9]  = { "// CHORUS",         sectionRect (1, 2) };
+        sections[10] = { "// DELAY",          sectionRect (2, 2) };
+        sections[11] = { "// REVERB",         sectionRect (3, 2) };
+        // Row 3 ─ master + perf + arp (arp spans two cells)
+        sections[12] = { "// MASTER",         sectionRect (0, 3) };
+        sections[13] = { "// PERF",           sectionRect (1, 3) };
+        {
+            auto arpRect = sectionRect (2, 3);
+            arpRect.setWidth (2 * colW + gap);
+            sections[14] = { "// ARP",        arpRect };
+        }
 
-        // Full-width visualiser strip beneath the param grid:
-        //   left half  -> oscilloscope
-        //   right half -> spectrum analyser
+        // Visualisers.
         const int half = (vizStrip.getWidth() - gap) / 2;
         scope.setBounds    (vizStrip.removeFromLeft (half));
         vizStrip.removeFromLeft (gap);
         analyzer.setBounds (vizStrip);
 
-        auto inset = [](juce::Rectangle<int> r)
-        {
-            return r.withTrimmedTop (24).reduced (8);
-        };
+        auto inset = [](juce::Rectangle<int> r) { return r.withTrimmedTop (24).reduced (8); };
 
         // OSC1
         {
@@ -394,10 +463,13 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), filterEnvAmt.slider,   filterEnvAmt.label);
             layoutKnob (c.removeFromLeft (kw), filterVelAmt.slider,   filterVelAmt.label);
         }
-        // LFO1
+        // LFO1 (shape + sync combos, then 5 knobs)
         {
             auto c = inset (sections[7].bounds);
-            layoutCombo (c.removeFromTop (38), lfo1Shape.combo, lfo1Shape.label);
+            auto top = c.removeFromTop (38);
+            const int comboW = top.getWidth() / 2;
+            layoutCombo (top.removeFromLeft (comboW), lfo1Shape.combo, lfo1Shape.label);
+            layoutCombo (top,                         lfo1Sync.combo,  lfo1Sync.label);
             const int kw = c.getWidth() / 5;
             layoutKnob (c.removeFromLeft (kw), lfo1Rate.slider,     lfo1Rate.label);
             layoutKnob (c.removeFromLeft (kw), lfo1ToCutoff.slider, lfo1ToCutoff.label);
@@ -424,9 +496,10 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), chorusDepth.slider,    chorusDepth.label);
             layoutKnob (c.removeFromLeft (kw), chorusFeedback.slider, chorusFeedback.label);
         }
-        // DELAY
+        // DELAY (sync combo + 5 knobs)
         {
             auto c = inset (sections[10].bounds);
+            layoutCombo (c.removeFromTop (38), delaySync.combo, delaySync.label);
             const int kw = c.getWidth() / 5;
             layoutKnob (c.removeFromLeft (kw), delayMix.slider,      delayMix.label);
             layoutKnob (c.removeFromLeft (kw), delayTimeL.slider,    delayTimeL.label);
@@ -450,10 +523,23 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), masterGain.slider, masterGain.label);
             layoutKnob (c.removeFromLeft (kw), masterPan.slider,  masterPan.label);
         }
-        // PERF
+        // PERF (poly mode + glide)
         {
             auto c = inset (sections[13].bounds);
             layoutCombo (c.removeFromTop (38), polyMode.combo, polyMode.label);
+            layoutKnob (c.removeFromLeft (c.getWidth() / 2), glide.slider, glide.label);
+        }
+        // ARP (toggle + mode + rate combos, octaves + gate knobs)
+        {
+            auto c = inset (sections[14].bounds);
+            auto top = c.removeFromTop (38);
+            arpOnButton.setBounds (top.removeFromLeft (110).withSizeKeepingCentre (104, 24));
+            const int cw = top.getWidth() / 2;
+            layoutCombo (top.removeFromLeft (cw), arpMode.combo, arpMode.label);
+            layoutCombo (top,                     arpRate.combo, arpRate.label);
+            const int kw = c.getWidth() / 4;
+            layoutKnob (c.removeFromLeft (kw), arpOctaves.slider, arpOctaves.label);
+            layoutKnob (c.removeFromLeft (kw), arpGate.slider,    arpGate.label);
         }
     }
 }

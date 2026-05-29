@@ -4,6 +4,7 @@
 #include "gui/CyberLookAndFeel.h"
 #include "gui/Oscilloscope.h"
 #include "gui/Spectroscope.h"
+#include "presets/PresetManager.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -29,6 +30,7 @@ namespace bacillum
         using APVTS = juce::AudioProcessorValueTreeState;
         using SAtt  = APVTS::SliderAttachment;
         using CAtt  = APVTS::ComboBoxAttachment;
+        using BAtt  = APVTS::ButtonAttachment;
 
         struct LabeledRotary
         {
@@ -74,8 +76,16 @@ namespace bacillum
         void drawHeader  (juce::Graphics& g, juce::Rectangle<int> area);
         void drawGrid    (juce::Graphics& g, juce::Rectangle<int> area);
 
+        void buildPresetBar();
+        void refreshPresetCombo();   // sync combo selection to manager state
+
         gui::CyberLookAndFeel cyberLaf;
         PluginProcessor& processor;
+
+        // === Preset browser ================================================
+        presets::PresetManager presetManager;
+        juce::ComboBox presetCombo;
+        juce::TextButton presetPrev { "<" }, presetNext { ">" };
 
         // === OSC ============================================================
         LabeledCombo  osc1Wave;
@@ -101,7 +111,7 @@ namespace bacillum
         LabeledRotary ampA, ampD, ampS, ampR;
 
         // === LFO1 ==========================================================
-        LabeledCombo  lfo1Shape;
+        LabeledCombo  lfo1Shape, lfo1Sync;
         LabeledRotary lfo1Rate, lfo1ToCutoff, lfo1ToPitch, lfo1ToAmp, lfo1FadeIn;
 
         // === Chorus ========================================================
@@ -109,11 +119,18 @@ namespace bacillum
         LabeledRotary chorusMix, chorusRate, chorusDepth, chorusFeedback;
 
         // === Delay / Reverb ================================================
+        LabeledCombo  delaySync;
         LabeledRotary delayMix, delayTimeL, delayTimeR, delayFB, delayPingPong;
         LabeledRotary reverbMix, reverbSize, reverbDamping, reverbWidth;
 
-        // === Master ========================================================
-        LabeledRotary masterGain, masterPan;
+        // === Arpeggiator ===================================================
+        juce::ToggleButton    arpOnButton { "ARP ON" };
+        std::unique_ptr<BAtt> arpOnAttach;
+        LabeledCombo  arpMode, arpRate;
+        LabeledRotary arpOctaves, arpGate;
+
+        // === Master / Perf =================================================
+        LabeledRotary masterGain, masterPan, glide;
         LabeledCombo  polyMode;
 
         // === On-screen + visualisers =======================================
@@ -121,7 +138,7 @@ namespace bacillum
         gui::Oscilloscope scope;
         gui::Spectroscope analyzer;
 
-        std::array<Section, 14> sections {};
+        std::array<Section, 16> sections {};
         bool caretOn { true };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)

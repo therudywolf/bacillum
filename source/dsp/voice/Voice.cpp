@@ -247,11 +247,13 @@ namespace bacillum::dsp
         const float pL = panLeft;
         const float pR = panRight;
 
-        // Effective LFO depth scaled by mod wheel (fixed routing per spec).
-        const float modWheelScale = modWheel01;  // 0..1 attenuator on LFO1
-        const float depthCutoffOct = lfo1ToCutoffOct * modWheelScale;
-        const float depthPitchSemi = lfo1ToPitchSemi * modWheelScale;
-        const float depthAmp       = lfo1ToAmp01    * modWheelScale;
+        // LFO1 depths apply at full strength from their own params (so presets
+        // sound without touching the wheel). The mod wheel ADDS vibrato on top
+        // — the classic "wheel = vibrato" routing of the Virus / Nord.
+        constexpr float kModWheelVibratoSemis = 0.5f;
+        const float depthCutoffOct = lfo1ToCutoffOct;
+        const float depthPitchSemi = lfo1ToPitchSemi + modWheel01 * kModWheelVibratoSemis;
+        const float depthAmp       = lfo1ToAmp01;
 
         // Pitch modulation is applied by recomputing OSC frequency periodically.
         // Keep a smoothed LFO sample for cutoff between updates.

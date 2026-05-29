@@ -1,7 +1,7 @@
 # Bacillum — Roadmap
 
-Re-actualized after the v0.2 milestone (visualisers, HyperSaw, sub-osc options,
-Chorus/Flanger/Phaser, cyberpunk LookAndFeel).
+Re-actualized after the v0.3 milestone (glide, Moog ladder, tempo sync,
+arpeggiator, 24-patch factory bank + preset browser).
 
 The goal remains: **hardware-class virtual-analog polyphonic synth** — Virus TI /
 Nord Lead A1 / JP-8000 quality, not "another bedroom JUCE example".
@@ -34,9 +34,22 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 - [x] Wolf-cyberpunk `LookAndFeel` (Consolas mono, cyan + blood, terminal header).
 - [x] UTF-8 source toolchain (`/utf-8` flag).
 
+### Done (v0.3 — engine depth)
+
+- [x] **Glide / portamento** — per-voice fractional-note glide, unison stacks slide
+      together, mono/legato aware, seeded from last played note.
+- [x] **Moog ladder filter** (Huovilainen 2004, thermal, 2× oversampled) selectable
+      as Moog LP24 / LP12 alongside the Cytomic SVF.
+- [x] **Tempo sync** for LFO1, delay and arp via `AudioPlayHead` BPM (1/1…1/32,
+      dotted/triplet).
+- [x] **Arpeggiator** — Up / Down / Up-Down / Random / As-Played, 1–4 octaves,
+      gate, host-synced; sample-accurate MIDI transformer.
+- [x] **Mod-wheel = vibrato** routing (additive), so LFO knobs work standalone.
+- [x] **Factory bank** — 24 patches + preset browser bar (prev / next / dropdown).
+
 ---
 
-## v0.3 — Modulation & sources (next, ~1–2 weeks)
+## v0.3.x — Modulation depth (next, ~1–2 weeks)
 
 The goal: a fully-modulated, deeply patchable synth.
 
@@ -44,14 +57,11 @@ The goal: a fully-modulated, deeply patchable synth.
       (target list: cutoff, pitch, PW, pan, FX sends).
 - [ ] **LFO 3** — global, free-running, tempo-syncable LFO; routes to master pan,
       cutoff (all voices), delay/reverb FX.
-- [ ] **Tempo sync** for LFOs and delay via `AudioPlayHead::PositionInfo::getBpm()`.
-      Note divisions: 1/1, 1/2, 1/4, 1/4T, 1/8, 1/8T, 1/16, 1/32.
 - [ ] **8-slot Mod Matrix** (spec §2.2). Sources: ENV1-3, LFO1-3, Vel, Note,
       Aftertouch (channel + poly), ModWheel, PB, Breath, Expression, Sustain,
       RandomPerNote, RandomPerSample, Constant1. Destinations: every continuous
       param. Curves: linear / exp / log / quad / S.
 - [ ] **3rd envelope** (free / DAHDSR) for the mod matrix.
-- [ ] **Glide / portamento** — constant-time, legato-only mode.
 - [ ] **Velocity curve** options (linear / fixed / exponential / S-curve).
 
 ---
@@ -66,9 +76,10 @@ The goal: a fully-modulated, deeply patchable synth.
       - Ring mod OSC1 × OSC2.
       - PM / linear-FM OSC2 → OSC1.
       - Cross-mod (OSC1 audio modulates OSC2 freq).
-- [ ] **Moog ladder filter** (Huovilainen 2004) — 4-stage tanh ladder with feedback
-      compensation. Wrapped in `juce::dsp::Oversampling 2x` (FIR halfband).
-- [ ] **Filter type switch** per voice: SVF / Ladder / TB-303-style.
+- [x] **Moog ladder filter** (Huovilainen 2004) — shipped in v0.3 (internal 2×
+      oversampling rather than a FIR-halfband stage; a polyphase upgrade is a
+      possible later refinement).
+- [x] **Filter type switch** per voice: SVF / Ladder — shipped in v0.3.
 - [ ] **2nd filter** with serial / parallel / split routing (spec §1.1).
 - [ ] **Saturator stage** between filters (tanh / hard / fold / bitcrush / decimator).
 
@@ -76,8 +87,8 @@ The goal: a fully-modulated, deeply patchable synth.
 
 ## v0.5 — Performance & FX polish (~1–2 weeks)
 
-- [ ] **Arpeggiator** — modes: up / down / up-down / random / chord / order;
-      gate, swing, octave range, sync to host.
+- [x] **Arpeggiator** — up / down / up-down / random / as-played, gate, octave
+      range, host sync — shipped in v0.3. (Swing + chord/order modes still TODO.)
 - [ ] **Step sequencer** (4×16 patterns) — pitch, velocity, gate, tied steps.
 - [ ] **Dattorro plate reverb** (replace `juce::Reverb`) — pre-delay, 4 input AP,
       tank with modulated AP, damping LP, multi-tap output (Dattorro 1997).
@@ -92,12 +103,15 @@ The goal: a fully-modulated, deeply patchable synth.
 
 ## v0.6 — Presets & GUI polish (~2–3 weeks)
 
+- [x] **Factory bank v1** — 24 code-defined patches (Init, Bass, Lead, Pad, Keys,
+      Pluck, Brass, Strings, Arp, Sequence, FX) with a sparse override model.
+- [x] **Preset browser v1** — header bar with prev / next + category-grouped
+      dropdown, drives APVTS so knobs animate on load.
 - [ ] **Preset format**: `ValueTree` + metadata (`name`, `author`, `category`,
       `tags[]`, `bpm_hint`, `description`, `plugin_version`, `state_version`).
-- [ ] **128 factory presets** across categories (Lead, Bass, Pad, Pluck, Keys,
-      Brass, Strings, Arp, Sequence, FX, Drum, Init).
-- [ ] **Preset browser** in editor — filter by category + tag, instant search,
-      A/B compare, init/random buttons.
+- [ ] **128 factory presets** — grow the bank to a full library across all categories.
+- [ ] **Preset browser v2** — filter by category + tag, instant search, A/B compare,
+      init / random buttons.
 - [ ] **Import / export** single preset + bank (`.bcl` JSON or binary).
 - [ ] **MIDI Learn** — right-click any param → next CC binds. Persist mapping
       in state. Indicator badge on mapped controls.
