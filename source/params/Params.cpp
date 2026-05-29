@@ -78,12 +78,47 @@ namespace bacillum::params
     {
         switch (static_cast<FilterMode>(i))
         {
-            case FilterMode::LP12:  return "LP 12";
-            case FilterMode::LP24:  return "LP 24";
-            case FilterMode::HP12:  return "HP 12";
-            case FilterMode::BP12:  return "BP 12";
-            case FilterMode::Notch: return "Notch";
-            case FilterMode::Peak:  return "Peak";
+            case FilterMode::LP12:     return "SVF LP12";
+            case FilterMode::LP24:     return "SVF LP24";
+            case FilterMode::HP12:     return "SVF HP12";
+            case FilterMode::BP12:     return "SVF BP12";
+            case FilterMode::Notch:    return "SVF Notch";
+            case FilterMode::Peak:     return "SVF Peak";
+            case FilterMode::Ladder24: return "Moog LP24";
+            case FilterMode::Ladder12: return "Moog LP12";
+            default:                   return {};
+        }
+    }
+
+    static juce::String syncDivisionName(int i)
+    {
+        switch (static_cast<SyncDivision>(i))
+        {
+            case SyncDivision::Free:      return "Free";
+            case SyncDivision::D1_1:      return "1/1";
+            case SyncDivision::D1_2:      return "1/2";
+            case SyncDivision::D1_4Dot:   return "1/4.";
+            case SyncDivision::D1_4:      return "1/4";
+            case SyncDivision::D1_4Trip:  return "1/4T";
+            case SyncDivision::D1_8Dot:   return "1/8.";
+            case SyncDivision::D1_8:      return "1/8";
+            case SyncDivision::D1_8Trip:  return "1/8T";
+            case SyncDivision::D1_16:     return "1/16";
+            case SyncDivision::D1_16Trip: return "1/16T";
+            case SyncDivision::D1_32:     return "1/32";
+            default:                      return {};
+        }
+    }
+
+    static juce::String arpModeName(int i)
+    {
+        switch (static_cast<ArpMode>(i))
+        {
+            case ArpMode::Up:       return "Up";
+            case ArpMode::Down:     return "Down";
+            case ArpMode::UpDown:   return "Up/Down";
+            case ArpMode::Random:   return "Random";
+            case ArpMode::AsPlayed: return "As Played";
             default:                return {};
         }
     }
@@ -252,6 +287,33 @@ namespace bacillum::params
         addF(ids::reverbSize,   "Reverb Size",    unit01, 0.6f);
         addF(ids::reverbDamping,"Reverb Damping", unit01, 0.4f);
         addF(ids::reverbWidth,  "Reverb Width",   unit01, 1.0f);
+
+        // --- Tempo sync ----------------------------------------------------
+        const auto syncDivs = makeChoices(static_cast<int>(SyncDivision::NumDivisions), syncDivisionName);
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::lfo1Sync, kVersionHint }, "LFO1 Sync",
+            syncDivs, static_cast<int>(SyncDivision::Free)));
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::delaySync, kVersionHint }, "Delay Sync",
+            syncDivs, static_cast<int>(SyncDivision::Free)));
+
+        // --- Glide ---------------------------------------------------------
+        addF(ids::glideTime, "Glide",
+             juce::NormalisableRange<float>{ 0.0f, 2.0f, 0.001f, 0.4f }, 0.0f, "s");
+
+        // --- Arpeggiator ---------------------------------------------------
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            PID{ ids::arpOn, kVersionHint }, "Arp On", false));
+        const auto arpModes = makeChoices(static_cast<int>(ArpMode::NumModes), arpModeName);
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::arpMode, kVersionHint }, "Arp Mode",
+            arpModes, static_cast<int>(ArpMode::Up)));
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::arpRate, kVersionHint }, "Arp Rate",
+            syncDivs, static_cast<int>(SyncDivision::D1_8)));
+        layout.add(std::make_unique<juce::AudioParameterInt>(
+            PID{ ids::arpOctaves, kVersionHint }, "Arp Octaves", 1, 4, 1));
+        addF(ids::arpGate, "Arp Gate", unit01, 0.6f);
 
         // --- Global --------------------------------------------------------
         layout.add(std::make_unique<juce::AudioParameterChoice>(

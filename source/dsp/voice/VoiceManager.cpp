@@ -74,13 +74,15 @@ namespace bacillum::dsp
     }
 
     void VoiceManager::triggerOneVoice(int midiNote, float vel,
-                                       float centsOffset, float panOffset) noexcept
+                                       float centsOffset, float panOffset,
+                                       float glideFromNote) noexcept
     {
         // In unison mode we disable same-note retrigger so the unison group
         // doesn't collapse into a single voice on repeated key strikes.
         const bool unison = (unisonCount > 1);
         Voice* slot = findVoiceForNoteOn(midiNote, !unison);
 
+        slot->glideFrom(glideFromNote);
         slot->setUnisonOffsets(centsOffset, panOffset);
         slot->applyParams(params);
         slot->noteOn(midiNote, vel);
@@ -97,6 +99,11 @@ namespace bacillum::dsp
             return;
         }
 
+        // Pitch the new note(s) should glide from (captured once so a whole
+        // unison stack slides together).
+        const float fromNote = (params.glideTime > 0.001f && hasLastNote)
+                                 ? lastNoteFloat : static_cast<float>(midiNote);
+
         // Mono / Legato use a single voice slot; ignore unison.
         if (polyMode == params::PolyMode::Mono || polyMode == params::PolyMode::Legato)
         {
@@ -104,10 +111,11 @@ namespace bacillum::dsp
             const bool wasPlaying = mono.isPlaying() && ! mono.isInRelease();
             if (polyMode == params::PolyMode::Legato && wasPlaying)
             {
-                mono.setNote(midiNote);
+                mono.setNote(midiNote);   // glide handled internally
             }
             else
             {
+                mono.glideFrom(fromNote);
                 mono.setUnisonOffsets(0.0f, 0.0f);
                 mono.applyParams(params);
                 mono.noteOn(midiNote, v);
@@ -115,6 +123,9 @@ namespace bacillum::dsp
             }
             for (size_t i = 1; i < voices.size(); ++i)
                 voices[i].killFast();
+
+            lastNoteFloat = static_cast<float>(midiNote);
+            hasLastNote = true;
             return;
         }
 
@@ -123,19 +134,22 @@ namespace bacillum::dsp
         const int N = unisonCount;
         if (N == 1)
         {
-            triggerOneVoice(midiNote, v, 0.0f, 0.0f);
-            return;
+            triggerOneVoice(midiNote, v, 0.0f, 0.0f, fromNote);
+        }
+        else
+        {
+            for (int i = 0; i < N; ++i)
+            {
+                // Normalised position [-1..+1] across the unison group.
+                const float t = 2.0f * static_cast<float>(i) / static_cast<float>(N - 1) - 1.0f;
+                const float cents = t * unisonDetune;
+                const float pan   = t * unisonSpread;
+                triggerOneVoice(midiNote, v, cents, pan, fromNote);
+            }
         }
 
-        for (int i = 0; i < N; ++i)
-        {
-            // Normalised position [-1..+1] across the unison group.
-            const float t = (N == 1) ? 0.0f
-                                     : (2.0f * static_cast<float>(i) / static_cast<float>(N - 1) - 1.0f);
-            const float cents = t * unisonDetune;
-            const float pan   = t * unisonSpread;
-            triggerOneVoice(midiNote, v, cents, pan);
-        }
+        lastNoteFloat = static_cast<float>(midiNote);
+        hasLastNote = true;
     }
 
     void VoiceManager::noteOff(int midiNote, float velRel) noexcept

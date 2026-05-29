@@ -4,6 +4,7 @@
 #include "dsp/oscillators/HyperSaw.h"
 #include "dsp/oscillators/Noise.h"
 #include "dsp/filters/SvfTpt.h"
+#include "dsp/filters/MoogLadder.h"
 #include "dsp/envelopes/Adsr.h"
 #include "dsp/lfo/Lfo.h"
 #include "dsp/DcBlocker.h"
@@ -73,6 +74,7 @@ namespace bacillum::dsp
 
         // Performance / voicing
         float pan              { 0.0f };  // -1..+1 master pan offset applied per-voice
+        float glideTime        { 0.0f };  // seconds; 0 = instant pitch
     };
 
     class Voice
@@ -85,6 +87,10 @@ namespace bacillum::dsp
         void noteOff(float velRelease01) noexcept;
         void killFast() noexcept;
         void setNote(int midiNote) noexcept;
+
+        // Seed the glide origin: the next noteOn will glide from this pitch
+        // (in fractional MIDI-note units). Call before noteOn/applyParams.
+        void glideFrom(float fromNoteFloat) noexcept;
 
         // Unison contributors: caller sets per-voice detune cents and pan
         // before noteOn. Two voices in a unison group will have opposite
@@ -111,7 +117,9 @@ namespace bacillum::dsp
         HyperSaw   hyper1, hyper2;   // engaged when waveform == HyperSaw
         WhiteNoise whiteNoise;
         PinkNoise  pinkNoise;
-        SvfTpt     filter;
+        SvfTpt     filter;          // Cytomic SVF
+        MoogLadder ladder;          // Huovilainen ladder
+        bool       useLadder { false };
         AdsrLinear amp;
         AdsrLinear fEnv;
         Lfo        lfo1;
@@ -148,6 +156,13 @@ namespace bacillum::dsp
         float pitchBendSemis  { 0.0f };
         float osc1OffsetSemis { 0.0f };
         float osc2OffsetSemis { 0.0f };
+
+        // Glide: currentNote chases targetNote at control rate. baseHz is
+        // derived from currentNote so glide and pitch-bend compose cleanly.
+        float currentNote     { 60.0f };
+        float targetNote      { 60.0f };
+        float glideCoef       { 1.0f };   // per control-step; 1 = instant
+        float pitchModSemis   { 0.0f };   // LFO→pitch, refreshed at control rate
 
         // Unison
         float unisonCents { 0.0f };

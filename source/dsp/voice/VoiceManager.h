@@ -33,12 +33,17 @@ namespace bacillum::dsp
 
     private:
         Voice* findVoiceForNoteOn(int midiNote, bool allowSameNoteRetrigger) noexcept;
-        void   triggerOneVoice(int midiNote, float vel, float centsOffset, float panOffset) noexcept;
+        void   triggerOneVoice(int midiNote, float vel, float centsOffset,
+                               float panOffset, float glideFromNote) noexcept;
 
         std::array<Voice, kMaxVoices> voices;
 
         VoiceParams       params;
         params::PolyMode  polyMode { params::PolyMode::Poly };
+
+        // Glide: pitch the next note slides from.
+        float lastNoteFloat { 60.0f };
+        bool  hasLastNote   { false };
 
         // Unison
         int   unisonCount   { 1 };       // 1..8

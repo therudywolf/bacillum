@@ -97,6 +97,16 @@ namespace bacillum
         std::atomic<float>* pChorusDepth    { nullptr };
         std::atomic<float>* pChorusFeedback { nullptr };
 
+        std::atomic<float>* pGlideTime      { nullptr };
+        std::atomic<float>* pLfo1Sync       { nullptr };
+        std::atomic<float>* pDelaySync      { nullptr };
+
+        std::atomic<float>* pArpOn          { nullptr };
+        std::atomic<float>* pArpMode        { nullptr };
+        std::atomic<float>* pArpRate        { nullptr };
+        std::atomic<float>* pArpOctaves     { nullptr };
+        std::atomic<float>* pArpGate        { nullptr };
+
         std::atomic<float>* pFilterMode     { nullptr };
         std::atomic<float>* pFilterCutoff   { nullptr };
         std::atomic<float>* pFilterRes      { nullptr };
@@ -157,6 +167,7 @@ namespace bacillum
         float currentPitchBendNorm { 0.0f };
         float currentModWheel01    { 0.0f };
         float currentAftertouch01  { 0.0f };
+        float currentBpm           { 120.0f };  // from host playhead, fallback 120
 
         // Last applied unison config — used to avoid re-applying every block.
         int   lastUnisonCount { 1 };

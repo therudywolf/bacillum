@@ -43,6 +43,20 @@ namespace bacillum::params
         inline constexpr auto chorusDepth    = "chorus_depth";
         inline constexpr auto chorusFeedback = "chorus_feedback";
 
+        // Glide / portamento
+        inline constexpr auto glideTime      = "glide_time";    // seconds, 0 = off
+
+        // Tempo sync
+        inline constexpr auto lfo1Sync       = "lfo1_sync";     // SyncDivision (Free + note values)
+        inline constexpr auto delaySync      = "delay_sync";    // SyncDivision
+
+        // Arpeggiator
+        inline constexpr auto arpOn          = "arp_on";
+        inline constexpr auto arpMode        = "arp_mode";
+        inline constexpr auto arpRate        = "arp_rate";      // SyncDivision (step length)
+        inline constexpr auto arpOctaves     = "arp_octaves";   // 1..4
+        inline constexpr auto arpGate        = "arp_gate";      // 0..1
+
         // Filter
         inline constexpr auto filterMode      = "filter_mode";
         inline constexpr auto filterCutoff    = "filter_cutoff";
@@ -128,7 +142,49 @@ namespace bacillum::params
 
     enum class FilterMode : int
     {
+        // SVF (Cytomic TPT) modes …
         LP12 = 0, LP24, HP12, BP12, Notch, Peak,
+        // … then Moog ladder (Huovilainen) models.
+        Ladder24, Ladder12,
+        NumModes
+    };
+
+    // Note divisions for tempo-synced LFO / delay / arpeggiator.
+    // Index 0 = Free (use the Hz/seconds knob instead).
+    enum class SyncDivision : int
+    {
+        Free = 0,
+        D1_1, D1_2, D1_4Dot, D1_4, D1_4Trip,
+        D1_8Dot, D1_8, D1_8Trip,
+        D1_16, D1_16Trip, D1_32,
+        NumDivisions
+    };
+
+    // Returns the length of one cycle/step in beats (quarter notes).
+    // 0 means "free running" (caller should use the manual rate).
+    [[nodiscard]] inline float syncBeats (SyncDivision d) noexcept
+    {
+        switch (d)
+        {
+            case SyncDivision::D1_1:      return 4.0f;
+            case SyncDivision::D1_2:      return 2.0f;
+            case SyncDivision::D1_4Dot:   return 1.5f;
+            case SyncDivision::D1_4:      return 1.0f;
+            case SyncDivision::D1_4Trip:  return 2.0f / 3.0f;
+            case SyncDivision::D1_8Dot:   return 0.75f;
+            case SyncDivision::D1_8:      return 0.5f;
+            case SyncDivision::D1_8Trip:  return 1.0f / 3.0f;
+            case SyncDivision::D1_16:     return 0.25f;
+            case SyncDivision::D1_16Trip: return 1.0f / 6.0f;
+            case SyncDivision::D1_32:     return 0.125f;
+            case SyncDivision::Free:
+            default:                      return 0.0f;
+        }
+    }
+
+    enum class ArpMode : int
+    {
+        Up = 0, Down, UpDown, Random, AsPlayed,
         NumModes
     };
 

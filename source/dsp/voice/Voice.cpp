@@ -4,6 +4,12 @@
 
 namespace bacillum::dsp
 {
+    // Fractional MIDI note → frequency (A4 = note 69 = 440 Hz).
+    static inline float noteToHz (float note) noexcept
+    {
+        return 440.0f * std::pow (2.0f, (note - 69.0f) * (1.0f / 12.0f));
+    }
+
     void Voice::prepare(double sr) noexcept
     {
         sampleRate = static_cast<float>(sr);
@@ -14,6 +20,7 @@ namespace bacillum::dsp
         hyper1.prepare(sr);
         hyper2.prepare(sr);
         filter.prepare(sr);
+        ladder.prepare(sr);
         amp.prepare(sr);
         fEnv.prepare(sr);
         lfo1.prepare(sr);
@@ -31,6 +38,7 @@ namespace bacillum::dsp
         whiteNoise.reset(0x9E3779B9u);
         pinkNoise.reset(0xC0FFEE13u);
         filter.reset();
+        ladder.reset();
         amp.reset();
         fEnv.reset();
         lfo1.reset();
@@ -42,6 +50,9 @@ namespace bacillum::dsp
         osc1OffsetSemis = osc2OffsetSemis = 0.0f;
         unisonCents = unisonPan = 0.0f;
         panLeft = panRight = juce::MathConstants<float>::sqrt2 * 0.5f;
+        currentNote = targetNote = 60.0f;
+        glideCoef = 1.0f;
+        pitchModSemis = 0.0f;
         controlUpdateCounter = 0;
         startStamp = 0;
     }
@@ -50,13 +61,15 @@ namespace bacillum::dsp
     {
         switch (m)
         {
-            case params::FilterMode::LP12:  filter.setMode(SvfTpt::Mode::LP12);  break;
-            case params::FilterMode::LP24:  filter.setMode(SvfTpt::Mode::LP24);  break;
-            case params::FilterMode::HP12:  filter.setMode(SvfTpt::Mode::HP);    break;
-            case params::FilterMode::BP12:  filter.setMode(SvfTpt::Mode::BP);    break;
-            case params::FilterMode::Notch: filter.setMode(SvfTpt::Mode::Notch); break;
-            case params::FilterMode::Peak:  filter.setMode(SvfTpt::Mode::Peak);  break;
-            default:                        filter.setMode(SvfTpt::Mode::LP12);  break;
+            case params::FilterMode::LP12:  useLadder = false; filter.setMode(SvfTpt::Mode::LP12);  break;
+            case params::FilterMode::LP24:  useLadder = false; filter.setMode(SvfTpt::Mode::LP24);  break;
+            case params::FilterMode::HP12:  useLadder = false; filter.setMode(SvfTpt::Mode::HP);    break;
+            case params::FilterMode::BP12:  useLadder = false; filter.setMode(SvfTpt::Mode::BP);    break;
+            case params::FilterMode::Notch: useLadder = false; filter.setMode(SvfTpt::Mode::Notch); break;
+            case params::FilterMode::Peak:  useLadder = false; filter.setMode(SvfTpt::Mode::Peak);  break;
+            case params::FilterMode::Ladder24: useLadder = true; ladder.setFourPole(true);  break;
+            case params::FilterMode::Ladder12: useLadder = true; ladder.setFourPole(false); break;
+            default:                        useLadder = false; filter.setMode(SvfTpt::Mode::LP12);  break;
         }
     }
 
@@ -67,11 +80,18 @@ namespace bacillum::dsp
         recomputeOscFrequencies();
     }
 
+    void Voice::glideFrom(float fromNoteFloat) noexcept
+    {
+        currentNote = fromNoteFloat;
+    }
+
     void Voice::noteOn(int n, float vel) noexcept
     {
         midiNote = n;
         velocity = juce::jlimit(0.0f, 1.0f, vel);
-        baseHz = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(n));
+        targetNote = static_cast<float>(n);
+        if (glideCoef >= 0.999f)        // glide off → jump to pitch
+            currentNote = targetNote;
         recomputeOscFrequencies();
         amp.noteOn();
         fEnv.noteOn();
@@ -99,7 +119,9 @@ namespace bacillum::dsp
     void Voice::setNote(int n) noexcept
     {
         midiNote = n;
-        baseHz = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(n));
+        targetNote = static_cast<float>(n);
+        if (glideCoef >= 0.999f)
+            currentNote = targetNote;
         recomputeOscFrequencies();
     }
 
@@ -148,10 +170,23 @@ namespace bacillum::dsp
         applyFilterMode(p.filterMode);
         filterCutoffBase = p.filterCutoff;
         filter.setResonance01(p.filterRes01);
+        ladder.setResonance01(p.filterRes01);
         filterDrive01    = p.filterDrive01;
         filterKeytrack   = p.filterKeytrack;
         filterEnvAmount  = p.filterEnvAmount;
         filterVelAmount  = p.filterVelAmount;
+
+        // Glide coefficient per control step (one-pole approach).
+        if (p.glideTime <= 0.001f)
+        {
+            glideCoef = 1.0f;
+        }
+        else
+        {
+            const float controlRate = sampleRate / static_cast<float>(kControlUpdateInterval);
+            glideCoef = 1.0f - std::exp(-2.2f / (p.glideTime * controlRate));
+            glideCoef = juce::jlimit(0.0001f, 1.0f, glideCoef);
+        }
 
         amp.setAttack (p.ampA);
         amp.setDecay  (p.ampD);
@@ -180,7 +215,9 @@ namespace bacillum::dsp
 
     void Voice::recomputeOscFrequencies() noexcept
     {
-        const float bend = pitchBendSemis;
+        baseHz = noteToHz(currentNote);
+
+        const float bend = pitchBendSemis + pitchModSemis;   // pitch wheel + LFO→pitch
         const float unisonSemis = unisonCents / 100.0f;
         const float maxHz = sampleRate * 0.49f;
 
@@ -247,40 +284,36 @@ namespace bacillum::dsp
                 src = std::tanh(src * pre) * comp;
             }
 
-            // ---- Control-rate updates (cutoff + osc pitch via LFO) ------
+            // ---- Control-rate updates (glide + cutoff + LFO→pitch) ------
             const float fe = fEnv.tick();
             if (controlUpdateCounter == 0)
             {
+                // Glide: advance currentNote toward targetNote.
+                if (glideCoef < 0.999f)
+                {
+                    currentNote += (targetNote - currentNote) * glideCoef;
+                    if (std::abs(targetNote - currentNote) < 0.001f)
+                        currentNote = targetNote;
+                }
+
+                // LFO1 → pitch, folded into the frequency recompute.
+                pitchModSemis = lfo1Value * depthPitchSemi;
+                recomputeOscFrequencies();
+
+                // Cutoff modulation (octaves).
                 const float envOct = filterEnvAmount * 5.0f * fe;
                 const float velOct = filterVelAmount * 3.0f * velocity;
                 const float ktOct  = keytrackSemis * (1.0f / 12.0f);
                 const float lfoOct = lfo1Value * depthCutoffOct;
-                const float modOct = envOct + velOct + ktOct + lfoOct;
-
-                filter.setCutoff(filterCutoffBase * std::pow(2.0f, modOct));
-
-                // LFO1 → pitch modulation: nudge OSC frequencies.
-                if (depthPitchSemi > 0.0001f || depthPitchSemi < -0.0001f)
-                {
-                    const float bend = pitchBendSemis + lfo1Value * depthPitchSemi;
-                    const float unisonSemis = unisonCents / 100.0f;
-                    const float maxHz = sampleRate * 0.49f;
-
-                    const float r1 = std::pow(2.0f, (osc1OffsetSemis + unisonSemis + bend) * (1.0f / 12.0f));
-                    const float f1 = juce::jlimit(0.01f, maxHz, baseHz * r1);
-                    osc1.setFrequency(f1);
-                    hyper1.setFrequency(f1);
-                    const float r2 = std::pow(2.0f, (osc2OffsetSemis + unisonSemis + bend) * (1.0f / 12.0f));
-                    const float f2 = juce::jlimit(0.01f, maxHz, baseHz * r2);
-                    osc2.setFrequency(f2);
-                    hyper2.setFrequency(f2);
-                }
+                const float cutoff = filterCutoffBase * std::pow(2.0f, envOct + velOct + ktOct + lfoOct);
+                filter.setCutoff(cutoff);
+                ladder.setCutoff(cutoff);
             }
             if (++controlUpdateCounter >= kControlUpdateInterval)
                 controlUpdateCounter = 0;
 
-            // ---- Filter -------------------------------------------------
-            const float filtered = filter.process(src);
+            // ---- Filter (SVF or Moog ladder) ----------------------------
+            const float filtered = useLadder ? ladder.process(src) : filter.process(src);
 
             // ---- VCA + tremolo ------------------------------------------
             const float env = amp.tick();

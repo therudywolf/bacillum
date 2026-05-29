@@ -37,6 +37,16 @@ namespace bacillum
         pChorusDepth    = apvts.getRawParameterValue (params::ids::chorusDepth);
         pChorusFeedback = apvts.getRawParameterValue (params::ids::chorusFeedback);
 
+        pGlideTime      = apvts.getRawParameterValue (params::ids::glideTime);
+        pLfo1Sync       = apvts.getRawParameterValue (params::ids::lfo1Sync);
+        pDelaySync      = apvts.getRawParameterValue (params::ids::delaySync);
+
+        pArpOn          = apvts.getRawParameterValue (params::ids::arpOn);
+        pArpMode        = apvts.getRawParameterValue (params::ids::arpMode);
+        pArpRate        = apvts.getRawParameterValue (params::ids::arpRate);
+        pArpOctaves     = apvts.getRawParameterValue (params::ids::arpOctaves);
+        pArpGate        = apvts.getRawParameterValue (params::ids::arpGate);
+
         pFilterMode     = apvts.getRawParameterValue (params::ids::filterMode);
         pFilterCutoff   = apvts.getRawParameterValue (params::ids::filterCutoff);
         pFilterRes      = apvts.getRawParameterValue (params::ids::filterRes);
@@ -182,6 +192,19 @@ namespace bacillum
         out.lfo1ToPitchSemi= pLfo1ToPitch->load();
         out.lfo1ToAmp01    = pLfo1ToAmp->load();
 
+        // LFO1 tempo sync: if a division is chosen, override the manual rate.
+        const auto lfoSync = loadChoice<params::SyncDivision>(pLfo1Sync, (int) params::SyncDivision::NumDivisions);
+        const float lfoBeats = params::syncBeats(lfoSync);
+        if (lfoBeats > 0.0f)
+        {
+            const float secondsPerBeat = 60.0f / juce::jmax(1.0f, currentBpm);
+            const float cycleSeconds   = lfoBeats * secondsPerBeat;
+            out.lfo1RateHz = (cycleSeconds > 0.0001f) ? (1.0f / cycleSeconds) : out.lfo1RateHz;
+        }
+
+        // Glide
+        out.glideTime = pGlideTime->load();
+
         // Mod sources from MIDI / GUI
         out.modWheel01     = currentModWheel01;
         const float pbRange = pPitchBendRange->load();
@@ -292,7 +315,18 @@ namespace bacillum
             chorus.process (L + start, R + start, numSamples);
 
         // --- Delay ---
-        delay.setTimes      (pDelayTimeL->load(), pDelayTimeR->load());
+        const auto delSync = loadChoice<params::SyncDivision>(pDelaySync, (int) params::SyncDivision::NumDivisions);
+        const float delBeats = params::syncBeats(delSync);
+        if (delBeats > 0.0f)
+        {
+            const float spb = 60.0f / juce::jmax(1.0f, currentBpm);
+            const float t   = delBeats * spb;
+            delay.setTimes (t, t);
+        }
+        else
+        {
+            delay.setTimes (pDelayTimeL->load(), pDelayTimeR->load());
+        }
         delay.setFeedback   (pDelayFeedback->load());
         delay.setCrossFeedback (pDelayPingPong->load());
         delay.setDampingCutoff (pDelayDamp->load());
@@ -331,6 +365,12 @@ namespace bacillum
 
         for (int ch = 0; ch < numChans; ++ch)
             buffer.clear (ch, 0, numSamples);
+
+        // Host tempo for synced LFO / delay / arp. Falls back to 120 BPM.
+        if (auto* ph = getPlayHead())
+            if (auto pos = ph->getPosition())
+                if (auto bpm = pos->getBpm())
+                    currentBpm = static_cast<float>(*bpm);
 
         // Inject MIDI from on-screen / PC keyboard.
         keyboardState.processNextMidiBuffer (midi, 0, numSamples, true);
