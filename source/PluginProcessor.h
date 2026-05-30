@@ -4,6 +4,7 @@
 #include "dsp/effects/Delay.h"
 #include "dsp/effects/Chorus.h"
 #include "dsp/effects/Eq3.h"
+#include "dsp/effects/DattorroReverb.h"
 #include "dsp/arp/Arpeggiator.h"
 #include "dsp/util/AudioVizBuffer.h"
 #include "params/Params.h"
@@ -205,7 +206,7 @@ namespace bacillum
         dsp::Eq3          eq;           // front of FX chain
         dsp::ChorusFx     chorus;
         dsp::StereoDelay  delay;
-        juce::Reverb      reverb;
+        dsp::DattorroReverb reverb;          // Dattorro plate
         juce::dsp::Compressor<float> comp;   // end of FX chain
         juce::dsp::Limiter<float>    limiter; // brick-wall safety
         dsp::AudioVizBuffer vizBuffer;

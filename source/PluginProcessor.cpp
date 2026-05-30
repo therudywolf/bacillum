@@ -150,8 +150,7 @@ namespace bacillum
         eq.prepare (sampleRate);
         chorus.prepare (sampleRate, samplesPerBlock);
         delay.prepare (sampleRate, 4.0);
-        reverb.setSampleRate (sampleRate);
-        reverb.reset();
+        reverb.prepare (sampleRate);
 
         juce::dsp::ProcessSpec spec;
         spec.sampleRate       = sampleRate;
@@ -444,20 +443,12 @@ namespace bacillum
         delay.setMix        (pDelayMix->load());
         delay.process (L + start, R + start, numSamples);
 
-        // --- Reverb ---
-        juce::Reverb::Parameters rp;
-        rp.roomSize  = pReverbSize->load();
-        rp.damping   = pReverbDamping->load();
-        rp.width     = pReverbWidth->load();
-        rp.wetLevel  = pReverbMix->load();
-        rp.dryLevel  = 1.0f - rp.wetLevel * 0.5f;  // keep dry mostly intact
-        rp.freezeMode= 0.0f;
-        reverb.setParameters (rp);
-
-        if (numChans > 1)
-            reverb.processStereo (L + start, R + start, numSamples);
-        else
-            reverb.processMono   (L + start, numSamples);
+        // --- Reverb (Dattorro plate) ---
+        reverb.setSize    (pReverbSize->load());
+        reverb.setDamping (pReverbDamping->load());
+        reverb.setWidth   (pReverbWidth->load());
+        reverb.setMix     (pReverbMix->load());
+        reverb.process (L + start, R + start, numSamples);
 
         // --- Compressor → makeup → brick-wall limiter (end of chain) ---
         {
