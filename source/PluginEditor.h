@@ -46,6 +46,11 @@ namespace bacillum
                 label.setJustificationType (juce::Justification::centred);
                 label.setFont (juce::Font (juce::FontOptions ("Consolas", 11.0f, juce::Font::plain)));
                 attach = std::make_unique<SAtt>(s, paramID, slider);
+                if (auto* rp = s.getParameter (paramID))
+                {
+                    slider.setDoubleClickReturnValue (true, rp->convertFrom0to1 (rp->getDefaultValue()));
+                    slider.setTooltip (rp->getName (64));   // hover shows the full param name
+                }
             }
         };
 
@@ -61,6 +66,8 @@ namespace bacillum
                 label.setJustificationType (juce::Justification::centred);
                 label.setFont (juce::Font (juce::FontOptions ("Consolas", 11.0f, juce::Font::plain)));
                 attach = std::make_unique<CAtt>(s, paramID, combo);
+                if (auto* rp = s.getParameter (paramID))
+                    combo.setTooltip (rp->getName (64));
             }
         };
 
@@ -162,6 +169,7 @@ namespace bacillum
         juce::MidiKeyboardComponent keyboard;
         gui::Oscilloscope scope;
         gui::Spectroscope analyzer;
+        juce::TooltipWindow tooltipWindow { nullptr, 500 };   // hover hints on every control
 
         std::array<Section, 24> sections {};
         bool caretOn { true };
