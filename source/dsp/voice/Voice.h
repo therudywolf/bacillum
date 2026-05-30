@@ -54,6 +54,11 @@ namespace bacillum::dsp
         // Wavetable scan (shared for any OSC running in Wavetable mode)
         float wavetablePos { 0.0f };
 
+        // OSC interop
+        bool  oscSync   { false };   // OSC2 hard-syncs OSC1 (classic carriers)
+        float oscRing   { 0.0f };    // ring-mod level into the mix
+        float oscFM     { 0.0f };    // OSC2 → OSC1 phase modulation
+
         // Noise
         params::NoiseType noiseType { params::NoiseType::White };
         float noiseLevel  { 0.0f };
@@ -178,6 +183,11 @@ namespace bacillum::dsp
         params::SubWaveform subWave { params::SubWaveform::Sine };
         int                subOctOffset { -12 };  // semitones from base
         params::NoiseType  noiseType { params::NoiseType::White };
+
+        // OSC interop (cached from params)
+        bool  oscSync { false };
+        float oscRing { 0.0f };
+        float oscFM   { 0.0f };
 
         // Base values (from params); matrix modulates around these.
         float osc1LevelBase  { 0.8f }, osc2LevelBase { 0.0f };

@@ -92,6 +92,10 @@ namespace bacillum
         LabeledRotary osc1Pitch, osc1Detune, osc1PW, osc1Level;
         LabeledCombo  osc2Wave;
         LabeledRotary osc2Pitch, osc2Detune, osc2PW, osc2Level;
+        // OSC interop
+        juce::ToggleButton    syncButton { "SYNC" };
+        std::unique_ptr<BAtt> syncAttach;
+        LabeledRotary oscRing, oscFM;
 
         // === Sub + HyperSaw + Wavetable ====================================
         LabeledCombo  subWaveform, subOctave;

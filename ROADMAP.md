@@ -76,11 +76,10 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 - [x] **Wavetable oscillator** — shipped in v0.5. Mip-mapped (11 levels), 8 morph
       frames (sine→tri→saw→square→pulse→organ→formant→bright), WT.POS scan.
       (Single factory wavetable for now; a multi-table library is a later add.)
-- [ ] **OSC interop**:
-      - Hard sync OSC2 → OSC1 with BLEP correction (Brandt MinBLEP).
-      - Ring mod OSC1 × OSC2.
-      - PM / linear-FM OSC2 → OSC1.
-      - Cross-mod (OSC1 audio modulates OSC2 freq).
+- [x] **OSC interop** — shipped in v0.6: hard sync (OSC2→OSC1), ring mod
+      (OSC1×OSC2), FM / phase-mod (OSC2→OSC1) on the classic-VA carrier path.
+      (Naive sync reset for now — BLEP/MinBLEP correction is a later refinement;
+      cross-mod still TODO.)
 - [x] **Moog ladder filter** (Huovilainen 2004) — shipped in v0.3 (internal 2×
       oversampling rather than a FIR-halfband stage; a polyphase upgrade is a
       possible later refinement).

@@ -297,6 +297,12 @@ namespace bacillum::params
         // --- Wavetable scan ------------------------------------------------
         addF(ids::wavetablePos, "Wavetable Pos", unit01, 0.0f);
 
+        // --- OSC interop ---------------------------------------------------
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            PID{ ids::oscSync, kVersionHint }, "OSC Sync", false));
+        addF(ids::oscRing, "Ring Mod", unit01, 0.0f);
+        addF(ids::oscFM,   "OSC FM",   unit01, 0.0f);
+
         // --- Noise ---------------------------------------------------------
         layout.add(std::make_unique<juce::AudioParameterChoice>(
             PID{ ids::noiseType, kVersionHint }, "Noise Type",

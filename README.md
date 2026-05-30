@@ -20,7 +20,8 @@ root@bacillum:~$ ./synth -mode poly -voices 16 -engine VA
 | Block | Status | Notes |
 |---|---|---|
 | Voice manager | done | custom 16-voice pool, NOT `juce::Synthesiser`. Stealing priority: same-note > idle > released-lowest-env > oldest, with anti-click fast-kill of the stolen slot. |
-| OSC1 / OSC2 | done | PolyBLEP-band-limited Sine / Triangle / Saw / Square+PWM / **HyperSaw** (7-voice Roland-JP8000-style supersaw). Pitch ±24 semi, detune ±50 cents, level. |
+| OSC1 / OSC2 | done | PolyBLEP-band-limited Sine / Triangle / Saw / Square+PWM / **HyperSaw** (7-voice JP-8000 supersaw) / **Wavetable** (mip-mapped, 8-frame morph). Pitch ±24 semi, detune ±50 cents, level. |
+| OSC interop | done | **Hard sync** (OSC2→OSC1), **ring mod** (OSC1×OSC2), **FM / phase-mod** (OSC2→OSC1) on the classic-VA carrier path. |
 | Sub osc | done | Independent sine / triangle / square, -1 or -2 octave switch, own level. |
 | Noise | done | White (xorshift32, per-note seed) + pink (Paul Kellet). |
 | Filter | done | Two models, selectable per patch: **Cytomic TPT SVF** (LP12, LP24 cascade, HP, BP, Notch, Peak) and **Moog ladder** (Huovilainen 2004, thermal non-linear, 2× oversampled — LP24/LP12). Drive (tanh) pre-filter. |
@@ -43,7 +44,7 @@ Voice mix → **3-band EQ** → Chorus/Flanger/Phaser → Stereo Delay → Rever
 | EQ | done | 3-band (low shelf + peak + high shelf), RBJ biquads, TDF-II, allocation-free (recomputed per block on the audio thread). |
 | Chorus / Flanger / Phaser | done | One unit with mode select. Quadrature LFO (90° L/R offset), Lagrange-3 delay line, 6-stage allpass cascade for phaser. |
 | Delay | done | Stereo with independent L/R times (or **tempo-synced**), ping-pong cross-feedback, damping LP in feedback path. |
-| Reverb | done | `juce::Reverb` (Freeverb-derived). Plate / Dattorro implementation planned. |
+| Reverb | done | **Dattorro plate** (1997): input bandwidth LP → 4 input-diffusion allpasses → figure-8 tank (allpass + delay + damping, cross-coupled decay) → multi-tap stereo output. Size / damping / width / mix. |
 | Compressor + Limiter | done | `juce::dsp::Compressor` (threshold/ratio/attack/release + makeup) followed by a brick-wall `juce::dsp::Limiter` at -0.3 dBFS for output safety. |
 
 ### Presets

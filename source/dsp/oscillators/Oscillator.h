@@ -40,41 +40,51 @@ namespace bacillum::dsp
             triState = 0.0f;
         }
 
+        // Phase-modulation input (radians-as-cycles), set per-sample for FM/PM.
+        void setPhaseMod(float cycles) noexcept { phaseMod = cycles; }
+
+        // True if the phase wrapped on the most recent tick() — drives hard sync.
+        [[nodiscard]] bool justWrapped() const noexcept { return wrapped; }
+
         [[nodiscard]] float tick() noexcept
         {
             const float dt = juce::jlimit(0.0f, 0.49f, freq * invSr);
+
+            // Read phase with PM offset; the accumulator advances un-modulated.
+            float pp = phase + phaseMod;
+            pp -= std::floor(pp);
 
             float out = 0.0f;
             switch (waveform)
             {
                 case Waveform::Sine:
                 {
-                    out = std::sin(phase * juce::MathConstants<float>::twoPi);
+                    out = std::sin(pp * juce::MathConstants<float>::twoPi);
                     break;
                 }
                 case Waveform::Saw:
                 {
-                    const float naive = 2.0f * phase - 1.0f;
-                    out = naive - polyBlep(phase, dt);
+                    const float naive = 2.0f * pp - 1.0f;
+                    out = naive - polyBlep(pp, dt);
                     break;
                 }
                 case Waveform::Square:
                 {
                     const float pw = pulsewidth;
-                    const float naive = (phase < pw) ? 1.0f : -1.0f;
-                    float t2 = phase - pw;
+                    const float naive = (pp < pw) ? 1.0f : -1.0f;
+                    float t2 = pp - pw;
                     if (t2 < 0.0f) t2 += 1.0f;
-                    out = naive + polyBlep(phase, dt) - polyBlep(t2, dt);
+                    out = naive + polyBlep(pp, dt) - polyBlep(t2, dt);
                     break;
                 }
                 case Waveform::Triangle:
                 {
                     // Square first, then a leaky integrator (spec §5.1.4).
                     const float pw = 0.5f;
-                    const float naive = (phase < pw) ? 1.0f : -1.0f;
-                    float t2 = phase - pw;
+                    const float naive = (pp < pw) ? 1.0f : -1.0f;
+                    float t2 = pp - pw;
                     if (t2 < 0.0f) t2 += 1.0f;
-                    const float sq = naive + polyBlep(phase, dt) - polyBlep(t2, dt);
+                    const float sq = naive + polyBlep(pp, dt) - polyBlep(t2, dt);
 
                     triState = 0.999f * triState + dt * sq;
                     out = triState * 4.0f;
@@ -85,7 +95,8 @@ namespace bacillum::dsp
             }
 
             phase += dt;
-            if (phase >= 1.0f) phase -= 1.0f;
+            wrapped = (phase >= 1.0f);
+            if (wrapped) phase -= 1.0f;
             return out;
         }
 
@@ -97,5 +108,7 @@ namespace bacillum::dsp
         float    phase     { 0.0f };
         float    pulsewidth{ 0.5f };
         float    triState  { 0.0f };
+        float    phaseMod  { 0.0f };
+        bool     wrapped   { false };
     };
 }

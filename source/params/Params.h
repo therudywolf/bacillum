@@ -38,6 +38,11 @@ namespace bacillum::params
         // Wavetable scan position (applies when waveform == Wavetable)
         inline constexpr auto wavetablePos   = "wavetable_pos";  // 0..1
 
+        // OSC interop
+        inline constexpr auto oscSync        = "osc_sync";       // bool: OSC2 hard-syncs OSC1
+        inline constexpr auto oscRing        = "osc_ring";       // 0..1 ring-mod level into mix
+        inline constexpr auto oscFM          = "osc_fm";         // 0..1 OSC2 → OSC1 phase mod
+
         // Noise
         inline constexpr auto noiseType      = "noise_type";
         inline constexpr auto noiseLevel     = "noise_level";

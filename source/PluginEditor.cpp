@@ -22,6 +22,8 @@ namespace bacillum
           osc2Detune (p.getAPVTS(), params::ids::osc2Detune,     "DETUNE"),
           osc2PW     (p.getAPVTS(), params::ids::osc2Pulsewidth, "PW"),
           osc2Level  (p.getAPVTS(), params::ids::osc2Level,      "LEVEL"),
+          oscRing    (p.getAPVTS(), params::ids::oscRing,        "RING"),
+          oscFM      (p.getAPVTS(), params::ids::oscFM,          "FM"),
 
           subWaveform (p.getAPVTS(), params::ids::subWaveform, "SUB.W"),
           subOctave   (p.getAPVTS(), params::ids::subOctave,   "SUB.OCT"),
@@ -140,7 +142,7 @@ namespace bacillum
         setResizeLimits (1040, 1080, 2400, 2000);
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
-                         &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
+                         &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level, &oscRing, &oscFM,
                          &subLevel, &hyperDetune, &hyperMix, &wavetablePos,
                          &noiseLevel, &unisonCount, &unisonDetune, &unisonSpread,
                          &filterCutoff, &filterRes, &filterDrive,
@@ -190,6 +192,13 @@ namespace bacillum
         arpOnButton.setColour (juce::ToggleButton::tickDisabledColourId, gui::Palette::grid());
         addAndMakeVisible (arpOnButton);
         arpOnAttach = std::make_unique<BAtt> (p.getAPVTS(), params::ids::arpOn, arpOnButton);
+
+        // OSC hard-sync toggle (lives in the OSC1 panel header).
+        syncButton.setColour (juce::ToggleButton::textColourId, gui::Palette::bone());
+        syncButton.setColour (juce::ToggleButton::tickColourId, gui::Palette::cyan());
+        syncButton.setColour (juce::ToggleButton::tickDisabledColourId, gui::Palette::grid());
+        addAndMakeVisible (syncButton);
+        syncAttach = std::make_unique<BAtt> (p.getAPVTS(), params::ids::oscSync, syncButton);
 
         buildPresetBar();
 
@@ -483,25 +492,29 @@ namespace bacillum
 
         auto inset = [](juce::Rectangle<int> r) { return r.withTrimmedTop (24).reduced (8); };
 
-        // OSC1
+        // OSC1 (+ SYNC toggle in the header row)
         {
             auto c = inset (sections[0].bounds);
-            layoutCombo (c.removeFromTop (38), osc1Wave.combo, osc1Wave.label);
+            auto top = c.removeFromTop (38);
+            syncButton.setBounds (top.removeFromRight (54).withSizeKeepingCentre (52, 22));
+            layoutCombo (top, osc1Wave.combo, osc1Wave.label);
             const int kw = c.getWidth() / 4;
             layoutKnob (c.removeFromLeft (kw), osc1Pitch.slider,  osc1Pitch.label);
             layoutKnob (c.removeFromLeft (kw), osc1Detune.slider, osc1Detune.label);
             layoutKnob (c.removeFromLeft (kw), osc1PW.slider,     osc1PW.label);
             layoutKnob (c.removeFromLeft (kw), osc1Level.slider,  osc1Level.label);
         }
-        // OSC2
+        // OSC2 (+ RING / FM interop knobs)
         {
             auto c = inset (sections[1].bounds);
             layoutCombo (c.removeFromTop (38), osc2Wave.combo, osc2Wave.label);
-            const int kw = c.getWidth() / 4;
+            const int kw = c.getWidth() / 6;
             layoutKnob (c.removeFromLeft (kw), osc2Pitch.slider,  osc2Pitch.label);
             layoutKnob (c.removeFromLeft (kw), osc2Detune.slider, osc2Detune.label);
             layoutKnob (c.removeFromLeft (kw), osc2PW.slider,     osc2PW.label);
             layoutKnob (c.removeFromLeft (kw), osc2Level.slider,  osc2Level.label);
+            layoutKnob (c.removeFromLeft (kw), oscRing.slider,    oscRing.label);
+            layoutKnob (c.removeFromLeft (kw), oscFM.slider,      oscFM.label);
         }
         // SUB + HYPER
         {

@@ -163,6 +163,11 @@ namespace bacillum::dsp
         wt1.setPosition(p.wavetablePos);
         wt2.setPosition(p.wavetablePos);
 
+        // OSC interop.
+        oscSync = p.oscSync;
+        oscRing = p.oscRing;
+        oscFM   = p.oscFM;
+
         // For non-HyperSaw OSC, configure the classic VA oscillator.
         if (osc1Wave != params::Waveform::HyperSaw)
             osc1.setWaveform(osc1Wave);
@@ -335,21 +340,39 @@ namespace bacillum::dsp
             lfo1Value = lfo1.tick();
             lfo2Value = lfo2.tick();
 
-            // ---- Source mix (effective levels, updated at control rate) -
-            const float o1raw = (osc1Wave == params::Waveform::HyperSaw)  ? hyper1.tick()
-                              : (osc1Wave == params::Waveform::Wavetable) ? wt1.tick()
-                              : osc1.tick();
+            // ---- Source mix with OSC interop ----------------------------
+            // OSC2 (modulator) ticks first so it can hard-sync / FM OSC1.
+            const bool osc2Classic = (osc2Wave != params::Waveform::HyperSaw
+                                      && osc2Wave != params::Waveform::Wavetable);
             const float o2raw = (osc2Wave == params::Waveform::HyperSaw)  ? hyper2.tick()
                               : (osc2Wave == params::Waveform::Wavetable) ? wt2.tick()
                               : osc2.tick();
+
+            const bool osc1Classic = (osc1Wave != params::Waveform::HyperSaw
+                                      && osc1Wave != params::Waveform::Wavetable);
+
+            // Hard sync: OSC2 wrap resets OSC1 phase (classic carriers only).
+            if (oscSync && osc1Classic && osc2Classic && osc2.justWrapped())
+                osc1.setPhase(0.0f);
+
+            // FM / phase-mod: OSC2 → OSC1 (classic carrier only).
+            if (osc1Classic)
+                osc1.setPhaseMod(oscFM > 0.0001f ? o2raw * oscFM * 0.5f : 0.0f);
+
+            const float o1raw = (osc1Wave == params::Waveform::HyperSaw)  ? hyper1.tick()
+                              : (osc1Wave == params::Waveform::Wavetable) ? wt1.tick()
+                              : osc1.tick();
+
             const float o1 = o1raw * osc1Level;
             const float o2 = o2raw * osc2Level;
             const float os = subOsc.tick() * subLevel;
             const float on = (noiseType == params::NoiseType::White
                                 ? whiteNoise.tick()
                                 : pinkNoise.tick()) * noiseLevel;
-            const float grpA = o1 + os;   // OSC1 + sub  → filter 1 in Split
-            const float grpB = o2 + on;   // OSC2 + noise → filter 2 in Split
+            const float ringS = (oscRing > 0.0001f) ? (o1raw * o2raw * oscRing) : 0.0f;
+
+            const float grpA = o1 + os;          // OSC1 + sub   → filter 1 in Split
+            const float grpB = o2 + on + ringS;  // OSC2 + noise + ring → filter 2 in Split
 
             const float fe = fEnv.tick();
             const float e3 = env3.tick();

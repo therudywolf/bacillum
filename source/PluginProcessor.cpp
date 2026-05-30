@@ -29,6 +29,9 @@ namespace bacillum
         pHyperDetune    = apvts.getRawParameterValue (params::ids::hyperDetune);
         pHyperMix       = apvts.getRawParameterValue (params::ids::hyperMix);
         pWavetablePos   = apvts.getRawParameterValue (params::ids::wavetablePos);
+        pOscSync        = apvts.getRawParameterValue (params::ids::oscSync);
+        pOscRing        = apvts.getRawParameterValue (params::ids::oscRing);
+        pOscFM          = apvts.getRawParameterValue (params::ids::oscFM);
         pNoiseType      = apvts.getRawParameterValue (params::ids::noiseType);
         pNoiseLevel     = apvts.getRawParameterValue (params::ids::noiseLevel);
 
@@ -216,6 +219,11 @@ namespace bacillum
 
         // Wavetable scan
         out.wavetablePos = pWavetablePos->load();
+
+        // OSC interop
+        out.oscSync = pOscSync->load() > 0.5f;
+        out.oscRing = pOscRing->load();
+        out.oscFM   = pOscFM->load();
 
         // Noise
         out.noiseType  = loadChoice<params::NoiseType>(pNoiseType, (int) params::NoiseType::NumNoiseTypes);

@@ -93,6 +93,9 @@ namespace bacillum
         std::atomic<float>* pHyperDetune    { nullptr };
         std::atomic<float>* pHyperMix       { nullptr };
         std::atomic<float>* pWavetablePos   { nullptr };
+        std::atomic<float>* pOscSync        { nullptr };
+        std::atomic<float>* pOscRing        { nullptr };
+        std::atomic<float>* pOscFM          { nullptr };
         std::atomic<float>* pNoiseType      { nullptr };
         std::atomic<float>* pNoiseLevel     { nullptr };
 
