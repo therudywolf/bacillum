@@ -144,6 +144,22 @@ namespace bacillum::params
         inline constexpr auto reverbDamping  = "reverb_damping";        // 0..1
         inline constexpr auto reverbWidth    = "reverb_width";          // 0..1
 
+        // 3-band EQ (front of FX chain)
+        inline constexpr auto eqLowFreq      = "eq_low_freq";
+        inline constexpr auto eqLowGain      = "eq_low_gain";
+        inline constexpr auto eqMidFreq      = "eq_mid_freq";
+        inline constexpr auto eqMidGain      = "eq_mid_gain";
+        inline constexpr auto eqMidQ         = "eq_mid_q";
+        inline constexpr auto eqHighFreq     = "eq_high_freq";
+        inline constexpr auto eqHighGain     = "eq_high_gain";
+
+        // Compressor (end of FX chain)
+        inline constexpr auto compThresh     = "comp_threshold";
+        inline constexpr auto compRatio      = "comp_ratio";
+        inline constexpr auto compAttack     = "comp_attack";
+        inline constexpr auto compRelease    = "comp_release";
+        inline constexpr auto compMakeup     = "comp_makeup";
+
         // Global
         inline constexpr auto polyMode       = "poly_mode";
         inline constexpr auto pitchBendRange = "pitch_bend_range";

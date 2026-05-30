@@ -383,6 +383,23 @@ namespace bacillum::params
         addF(ids::reverbDamping,"Reverb Damping", unit01, 0.4f);
         addF(ids::reverbWidth,  "Reverb Width",   unit01, 1.0f);
 
+        // --- 3-band EQ -----------------------------------------------------
+        const auto gainDb = juce::NormalisableRange<float>{ -18.0f, 18.0f, 0.1f };
+        addF(ids::eqLowFreq,  "EQ Low Freq",  juce::NormalisableRange<float>{ 20.0f, 1000.0f, 0.0f, 0.3f }, 120.0f, "Hz");
+        addF(ids::eqLowGain,  "EQ Low Gain",  gainDb, 0.0f, "dB");
+        addF(ids::eqMidFreq,  "EQ Mid Freq",  juce::NormalisableRange<float>{ 200.0f, 8000.0f, 0.0f, 0.3f }, 1000.0f, "Hz");
+        addF(ids::eqMidGain,  "EQ Mid Gain",  gainDb, 0.0f, "dB");
+        addF(ids::eqMidQ,     "EQ Mid Q",     juce::NormalisableRange<float>{ 0.2f, 4.0f, 0.01f, 0.5f }, 0.7f);
+        addF(ids::eqHighFreq, "EQ High Freq", juce::NormalisableRange<float>{ 2000.0f, 18000.0f, 0.0f, 0.3f }, 8000.0f, "Hz");
+        addF(ids::eqHighGain, "EQ High Gain", gainDb, 0.0f, "dB");
+
+        // --- Compressor ----------------------------------------------------
+        addF(ids::compThresh,  "Comp Threshold", juce::NormalisableRange<float>{ -48.0f, 0.0f, 0.1f }, 0.0f, "dB");
+        addF(ids::compRatio,   "Comp Ratio",     juce::NormalisableRange<float>{ 1.0f, 20.0f, 0.1f, 0.4f }, 2.0f, ":1");
+        addF(ids::compAttack,  "Comp Attack",    juce::NormalisableRange<float>{ 0.1f, 100.0f, 0.01f, 0.4f }, 10.0f, "ms");
+        addF(ids::compRelease, "Comp Release",   juce::NormalisableRange<float>{ 10.0f, 1000.0f, 0.1f, 0.4f }, 120.0f, "ms");
+        addF(ids::compMakeup,  "Comp Makeup",    juce::NormalisableRange<float>{ 0.0f, 24.0f, 0.1f }, 0.0f, "dB");
+
         // --- Tempo sync ----------------------------------------------------
         const auto syncDivs = makeChoices(static_cast<int>(SyncDivision::NumDivisions), syncDivisionName);
         layout.add(std::make_unique<juce::AudioParameterChoice>(

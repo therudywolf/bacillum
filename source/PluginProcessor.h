@@ -3,6 +3,7 @@
 #include "dsp/voice/VoiceManager.h"
 #include "dsp/effects/Delay.h"
 #include "dsp/effects/Chorus.h"
+#include "dsp/effects/Eq3.h"
 #include "dsp/arp/Arpeggiator.h"
 #include "dsp/util/AudioVizBuffer.h"
 #include "params/Params.h"
@@ -176,6 +177,20 @@ namespace bacillum
         std::atomic<float>* pReverbDamping  { nullptr };
         std::atomic<float>* pReverbWidth    { nullptr };
 
+        std::atomic<float>* pEqLowFreq      { nullptr };
+        std::atomic<float>* pEqLowGain      { nullptr };
+        std::atomic<float>* pEqMidFreq      { nullptr };
+        std::atomic<float>* pEqMidGain      { nullptr };
+        std::atomic<float>* pEqMidQ         { nullptr };
+        std::atomic<float>* pEqHighFreq     { nullptr };
+        std::atomic<float>* pEqHighGain     { nullptr };
+
+        std::atomic<float>* pCompThresh     { nullptr };
+        std::atomic<float>* pCompRatio      { nullptr };
+        std::atomic<float>* pCompAttack     { nullptr };
+        std::atomic<float>* pCompRelease    { nullptr };
+        std::atomic<float>* pCompMakeup     { nullptr };
+
         std::atomic<float>* pPolyMode       { nullptr };
         std::atomic<float>* pPitchBendRange { nullptr };
 
@@ -187,9 +202,12 @@ namespace bacillum
         dsp::VoiceManager voiceManager;
         dsp::Arpeggiator  arp;
         dsp::Lfo          lfo3Global;   // global LFO, advanced per block
+        dsp::Eq3          eq;           // front of FX chain
         dsp::ChorusFx     chorus;
         dsp::StereoDelay  delay;
         juce::Reverb      reverb;
+        juce::dsp::Compressor<float> comp;   // end of FX chain
+        juce::dsp::Limiter<float>    limiter; // brick-wall safety
         dsp::AudioVizBuffer vizBuffer;
 
         // Scratch MIDI buffer for arp/keyboard merging (reused; clear() keeps capacity).

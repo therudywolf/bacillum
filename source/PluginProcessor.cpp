@@ -117,6 +117,20 @@ namespace bacillum
         pReverbDamping  = apvts.getRawParameterValue (params::ids::reverbDamping);
         pReverbWidth    = apvts.getRawParameterValue (params::ids::reverbWidth);
 
+        pEqLowFreq      = apvts.getRawParameterValue (params::ids::eqLowFreq);
+        pEqLowGain      = apvts.getRawParameterValue (params::ids::eqLowGain);
+        pEqMidFreq      = apvts.getRawParameterValue (params::ids::eqMidFreq);
+        pEqMidGain      = apvts.getRawParameterValue (params::ids::eqMidGain);
+        pEqMidQ         = apvts.getRawParameterValue (params::ids::eqMidQ);
+        pEqHighFreq     = apvts.getRawParameterValue (params::ids::eqHighFreq);
+        pEqHighGain     = apvts.getRawParameterValue (params::ids::eqHighGain);
+
+        pCompThresh     = apvts.getRawParameterValue (params::ids::compThresh);
+        pCompRatio      = apvts.getRawParameterValue (params::ids::compRatio);
+        pCompAttack     = apvts.getRawParameterValue (params::ids::compAttack);
+        pCompRelease    = apvts.getRawParameterValue (params::ids::compRelease);
+        pCompMakeup     = apvts.getRawParameterValue (params::ids::compMakeup);
+
         pPolyMode       = apvts.getRawParameterValue (params::ids::polyMode);
         pPitchBendRange = apvts.getRawParameterValue (params::ids::pitchBendRange);
     }
@@ -133,10 +147,21 @@ namespace bacillum
         voiceManager.prepare (sampleRate);
         arp.prepare (sampleRate);
         lfo3Global.prepare (sampleRate);
+        eq.prepare (sampleRate);
         chorus.prepare (sampleRate, samplesPerBlock);
         delay.prepare (sampleRate, 4.0);
         reverb.setSampleRate (sampleRate);
         reverb.reset();
+
+        juce::dsp::ProcessSpec spec;
+        spec.sampleRate       = sampleRate;
+        spec.maximumBlockSize = static_cast<juce::uint32> (juce::jmax (32, samplesPerBlock));
+        spec.numChannels      = 2;
+        comp.prepare (spec);
+        limiter.prepare (spec);
+        limiter.setThreshold (-0.3f);   // brick-wall safety
+        limiter.setRelease (100.0f);
+
         vizBuffer.reset();
         workMidi.ensureSize (2048);   // pre-grow so processBlock never allocates
 
@@ -384,6 +409,13 @@ namespace bacillum
         float* L = buffer.getWritePointer (0);
         float* R = numChans > 1 ? buffer.getWritePointer (1) : L;
 
+        // --- 3-band EQ (front of FX chain) ---
+        eq.setParams (pEqLowFreq->load(), pEqLowGain->load(),
+                      pEqMidFreq->load(), pEqMidGain->load(), pEqMidQ->load(),
+                      pEqHighFreq->load(), pEqHighGain->load());
+        if (numChans > 1)
+            eq.process (L + start, R + start, numSamples);
+
         // --- Chorus / Flanger / Phaser (insert before time-based FX) ---
         chorus.setMode    (loadChoice<params::ChorusMode>(pChorusMode, (int) params::ChorusMode::NumChorusModes));
         chorus.setRate    (pChorusRate->load());
@@ -426,6 +458,29 @@ namespace bacillum
             reverb.processStereo (L + start, R + start, numSamples);
         else
             reverb.processMono   (L + start, numSamples);
+
+        // --- Compressor → makeup → brick-wall limiter (end of chain) ---
+        {
+            juce::dsp::AudioBlock<float> block (buffer);
+            auto sub = block.getSubBlock (static_cast<size_t> (start), static_cast<size_t> (numSamples));
+            juce::dsp::ProcessContextReplacing<float> ctx (sub);
+
+            comp.setThreshold (pCompThresh->load());
+            comp.setRatio     (juce::jmax (1.0f, pCompRatio->load()));
+            comp.setAttack    (pCompAttack->load());
+            comp.setRelease   (pCompRelease->load());
+            comp.process (ctx);
+
+            const float mk = juce::Decibels::decibelsToGain (pCompMakeup->load());
+            if (std::abs (mk - 1.0f) > 1.0e-4f)
+                for (int n = 0; n < numSamples; ++n)
+                {
+                    L[start + n] *= mk;
+                    if (numChans > 1) R[start + n] *= mk;
+                }
+
+            limiter.process (ctx);
+        }
 
         // ---- Visualisation feed: push the post-FX signal to the lock-free
         // ring so the editor's oscilloscope + spectrum analyser can render it.

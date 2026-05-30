@@ -98,6 +98,19 @@ namespace bacillum
           reverbDamping (p.getAPVTS(), params::ids::reverbDamping, "DAMP"),
           reverbWidth   (p.getAPVTS(), params::ids::reverbWidth,   "WIDTH"),
 
+          eqLowFreq  (p.getAPVTS(), params::ids::eqLowFreq,  "LO.F"),
+          eqLowGain  (p.getAPVTS(), params::ids::eqLowGain,  "LO.G"),
+          eqMidFreq  (p.getAPVTS(), params::ids::eqMidFreq,  "MID.F"),
+          eqMidGain  (p.getAPVTS(), params::ids::eqMidGain,  "MID.G"),
+          eqMidQ     (p.getAPVTS(), params::ids::eqMidQ,     "MID.Q"),
+          eqHighFreq (p.getAPVTS(), params::ids::eqHighFreq, "HI.F"),
+          eqHighGain (p.getAPVTS(), params::ids::eqHighGain, "HI.G"),
+          compThresh (p.getAPVTS(), params::ids::compThresh,  "THRSH"),
+          compRatio  (p.getAPVTS(), params::ids::compRatio,   "RATIO"),
+          compAttack (p.getAPVTS(), params::ids::compAttack,  "ATK"),
+          compRelease(p.getAPVTS(), params::ids::compRelease, "REL"),
+          compMakeup (p.getAPVTS(), params::ids::compMakeup,  "MAKEUP"),
+
           arpMode    (p.getAPVTS(), params::ids::arpMode,    "MODE"),
           arpRate    (p.getAPVTS(), params::ids::arpRate,    "RATE"),
           arpOctaves (p.getAPVTS(), params::ids::arpOctaves, "OCT"),
@@ -122,9 +135,9 @@ namespace bacillum
         scope.setSampleRate    (p.getCurrentSampleRate());
         analyzer.setSampleRate (p.getCurrentSampleRate());
 
-        setSize (1280, 1300);
+        setSize (1280, 1430);
         setResizable (true, true);
-        setResizeLimits (1040, 980, 2400, 1800);
+        setResizeLimits (1040, 1080, 2400, 2000);
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
                          &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
@@ -141,6 +154,8 @@ namespace bacillum
                          &chorusMix, &chorusRate, &chorusDepth, &chorusFeedback,
                          &delayMix, &delayTimeL, &delayTimeR, &delayFB, &delayPingPong,
                          &reverbMix, &reverbSize, &reverbDamping, &reverbWidth,
+                         &eqLowFreq, &eqLowGain, &eqMidFreq, &eqMidGain, &eqMidQ, &eqHighFreq, &eqHighGain,
+                         &compThresh, &compRatio, &compAttack, &compRelease, &compMakeup,
                          &arpOctaves, &arpGate,
                          &masterGain, &masterPan, &glide })
             addAndDisplay (*r);
@@ -397,8 +412,8 @@ namespace bacillum
         auto matrixArea = body.removeFromBottom (matrixH);
         body.removeFromBottom (gap);
 
-        // Remaining body = 4 cols × 6 rows panel grid.
-        const int cols = 4, rows = 6;
+        // Remaining body = 4 cols × 7 rows panel grid.
+        const int cols = 4, rows = 7;
         const int colW = (body.getWidth()  - (cols - 1) * gap) / cols;
         const int rowH = (body.getHeight() - (rows - 1) * gap) / rows;
 
@@ -446,6 +461,16 @@ namespace bacillum
             auto rsRect = sectionRect (2, 5);
             rsRect.setWidth (2 * colW + gap);
             sections[20] = { "// ROUTING + SATURATOR", rsRect };
+        }
+        // R6 ─ EQ + compressor (two half-width panels)
+        {
+            auto eqRect = sectionRect (0, 6);
+            eqRect.setWidth (2 * colW + gap);
+            sections[21] = { "// EQ", eqRect };
+
+            auto cmpRect = sectionRect (2, 6);
+            cmpRect.setWidth (2 * colW + gap);
+            sections[22] = { "// COMPRESSOR", cmpRect };
         }
         // Full-width mod matrix
         sections[18] = { "// MOD MATRIX  (source -> destination x depth)", matrixArea };
@@ -650,6 +675,28 @@ namespace bacillum
             layoutCombo (top.removeFromLeft (comboW), filterRouting.combo, filterRouting.label);
             layoutCombo (top,                         satType.combo,       satType.label);
             layoutKnob (c.removeFromLeft (c.getWidth() / 2), satAmount.slider, satAmount.label);
+        }
+        // EQ (7 knobs)
+        {
+            auto c = inset (sections[21].bounds);
+            const int kw = c.getWidth() / 7;
+            layoutKnob (c.removeFromLeft (kw), eqLowFreq.slider,  eqLowFreq.label);
+            layoutKnob (c.removeFromLeft (kw), eqLowGain.slider,  eqLowGain.label);
+            layoutKnob (c.removeFromLeft (kw), eqMidFreq.slider,  eqMidFreq.label);
+            layoutKnob (c.removeFromLeft (kw), eqMidGain.slider,  eqMidGain.label);
+            layoutKnob (c.removeFromLeft (kw), eqMidQ.slider,     eqMidQ.label);
+            layoutKnob (c.removeFromLeft (kw), eqHighFreq.slider, eqHighFreq.label);
+            layoutKnob (c.removeFromLeft (kw), eqHighGain.slider, eqHighGain.label);
+        }
+        // COMPRESSOR (5 knobs)
+        {
+            auto c = inset (sections[22].bounds);
+            const int kw = c.getWidth() / 5;
+            layoutKnob (c.removeFromLeft (kw), compThresh.slider,  compThresh.label);
+            layoutKnob (c.removeFromLeft (kw), compRatio.slider,   compRatio.label);
+            layoutKnob (c.removeFromLeft (kw), compAttack.slider,  compAttack.label);
+            layoutKnob (c.removeFromLeft (kw), compRelease.slider, compRelease.label);
+            layoutKnob (c.removeFromLeft (kw), compMakeup.slider,  compMakeup.label);
         }
         // MOD MATRIX — 8 vertical slots: src combo / dst combo / depth knob.
         {

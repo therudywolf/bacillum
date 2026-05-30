@@ -1,5 +1,7 @@
 # Bacillum
 
+[![build](https://github.com/therudywolf/bacillum/actions/workflows/build.yml/badge.svg)](https://github.com/therudywolf/bacillum/actions/workflows/build.yml)
+
 Virtual-analog polyphonic synthesizer plugin in the spirit of **Access Virus TI**,
 **Nord Lead A1/4** and **Roland JP-8000**.
 
@@ -34,13 +36,15 @@ root@bacillum:~$ ./synth -mode poly -voices 16 -engine VA
 
 ### FX bus
 
-Voice mix → Chorus/Flanger/Phaser → Stereo Delay → Reverb → Master gain → Out.
+Voice mix → **3-band EQ** → Chorus/Flanger/Phaser → Stereo Delay → Reverb → **Compressor → Limiter** → Out.
 
 | FX | Status | Notes |
 |---|---|---|
+| EQ | done | 3-band (low shelf + peak + high shelf), RBJ biquads, TDF-II, allocation-free (recomputed per block on the audio thread). |
 | Chorus / Flanger / Phaser | done | One unit with mode select. Quadrature LFO (90° L/R offset), Lagrange-3 delay line, 6-stage allpass cascade for phaser. |
 | Delay | done | Stereo with independent L/R times (or **tempo-synced**), ping-pong cross-feedback, damping LP in feedback path. |
 | Reverb | done | `juce::Reverb` (Freeverb-derived). Plate / Dattorro implementation planned. |
+| Compressor + Limiter | done | `juce::dsp::Compressor` (threshold/ratio/attack/release + makeup) followed by a brick-wall `juce::dsp::Limiter` at -0.3 dBFS for output safety. |
 
 ### Presets
 
@@ -74,9 +78,10 @@ without blocking the audio path.
   Consolas mono everywhere, sharp angular sections with cyan accent stripes,
   terminal-style header (`root@bacillum:~$ ...` with blinking caret),
   concentric cyber knobs with bipolar fill-from-centre.
-- Preset browser bar, ARP panel, 8-slot mod-matrix grid, oscilloscope + spectrum analyser.
-- Resizable (1040×900 → 2400×1700).
-- ~103 parameters in APVTS, host-automatable, state save/load via XML.
+- Preset browser bar, ARP panel, dual-filter + saturator, EQ + compressor,
+  8-slot mod-matrix grid, oscilloscope + spectrum analyser.
+- Resizable (1040×1080 → 2400×2000).
+- ~121 parameters in APVTS, host-automatable, state save/load via XML.
 
 ---
 

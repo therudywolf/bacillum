@@ -134,6 +134,10 @@ namespace bacillum
         LabeledRotary delayMix, delayTimeL, delayTimeR, delayFB, delayPingPong;
         LabeledRotary reverbMix, reverbSize, reverbDamping, reverbWidth;
 
+        // === EQ / Compressor ===============================================
+        LabeledRotary eqLowFreq, eqLowGain, eqMidFreq, eqMidGain, eqMidQ, eqHighFreq, eqHighGain;
+        LabeledRotary compThresh, compRatio, compAttack, compRelease, compMakeup;
+
         // === Arpeggiator ===================================================
         juce::ToggleButton    arpOnButton { "ARP ON" };
         std::unique_ptr<BAtt> arpOnAttach;

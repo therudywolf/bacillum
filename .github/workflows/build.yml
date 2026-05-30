@@ -1,0 +1,71 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags:     [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows (VST3 + Standalone) + pluginval
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Download pluginval
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+
+      - name: Validate VST3
+        shell: pwsh
+        run: |
+          $vst3 = Get-ChildItem -Recurse -Filter "Bacillum.vst3" -Path build | Select-Object -First 1
+          Write-Host "Validating $($vst3.FullName)"
+          & ./pluginval/pluginval.exe --strictness-level 5 --skip-gui-tests --timeout-ms 120000 --validate "$($vst3.FullName)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bacillum-windows-vst3
+          path: |
+            build/**/Bacillum.vst3/**
+            build/**/Standalone/Bacillum.exe
+          if-no-files-found: warn
+
+  linux:
+    name: Linux (portability build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install JUCE deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libjack-jackd2-dev libx11-dev libxcomposite-dev \
+            libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev libcurl4-openssl-dev \
+            libwebkit2gtk-4.1-dev ninja-build
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel 4

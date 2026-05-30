@@ -73,9 +73,9 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 
 ## v0.4 — Sound sources & filter quality (~1–2 weeks)
 
-- [ ] **Wavetable oscillator** — mip-mapped, Lagrange-3 interp, ≥16 factory tables
-      programmatically generated (harmonic-series saw/square/tri/sine, organ,
-      vocal formant, FM, additive bell, etc.). Scan via mod.
+- [x] **Wavetable oscillator** — shipped in v0.5. Mip-mapped (11 levels), 8 morph
+      frames (sine→tri→saw→square→pulse→organ→formant→bright), WT.POS scan.
+      (Single factory wavetable for now; a multi-table library is a later add.)
 - [ ] **OSC interop**:
       - Hard sync OSC2 → OSC1 with BLEP correction (Brandt MinBLEP).
       - Ring mod OSC1 × OSC2.
@@ -85,8 +85,9 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
       oversampling rather than a FIR-halfband stage; a polyphase upgrade is a
       possible later refinement).
 - [x] **Filter type switch** per voice: SVF / Ladder — shipped in v0.3.
-- [ ] **2nd filter** with serial / parallel / split routing (spec §1.1).
-- [ ] **Saturator stage** between filters (tanh / hard / fold / bitcrush / decimator).
+- [x] **2nd filter** with Single / Serial / Parallel / Split routing — shipped in v0.5.
+- [x] **Saturator stage** between filters (tanh / soft / hard / fold / bitcrush /
+      rate-reduce) — shipped in v0.5.
 
 ---
 
@@ -94,13 +95,15 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 
 - [x] **Arpeggiator** — up / down / up-down / random / as-played, gate, octave
       range, host sync — shipped in v0.3. (Swing + chord/order modes still TODO.)
+- [x] **EQ** — 3-band RBJ biquads (low shelf + peak + high shelf) — shipped in v0.5.
+- [x] **Compressor / Limiter** on output bus — shipped in v0.5
+      (juce::dsp Compressor + brick-wall Limiter).
+- [x] **CI** — GitHub Actions: Windows build + pluginval, Linux portability build.
 - [ ] **Step sequencer** (4×16 patterns) — pitch, velocity, gate, tied steps.
 - [ ] **Dattorro plate reverb** (replace `juce::Reverb`) — pre-delay, 4 input AP,
       tank with modulated AP, damping LP, multi-tap output (Dattorro 1997).
-- [ ] **EQ** — 3-band RBJ biquads (low shelf + peak + high shelf).
 - [ ] **Drive** — proper oversampled tanh / tube / fold / bitcrush with
       `juce::dsp::Oversampling` 2x / 4x.
-- [ ] **Compressor / Limiter** on output bus (RMS detector, soft knee).
 - [ ] **MPE** support (`juce::MPESynthesiser` pattern) — per-note pitch, slide
       (CC74), pressure.
 
