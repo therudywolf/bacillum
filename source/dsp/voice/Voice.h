@@ -15,6 +15,14 @@
 
 namespace bacillum::dsp
 {
+    // One modulation-matrix routing.
+    struct ModSlot
+    {
+        params::ModSource source { params::ModSource::None };
+        params::ModDest   dest   { params::ModDest::None };
+        float             depth  { 0.0f };   // -1..+1
+    };
+
     // Per-block snapshot of audio-relevant parameters.
     struct VoiceParams
     {
@@ -68,9 +76,23 @@ namespace bacillum::dsp
         float lfo1ToPitchSemi { 0.0f };   // depth in semitones on pitch
         float lfo1ToAmp01     { 0.0f };   // 0..1 amount on amp (tremolo)
 
-        // Modulation from host
-        float modWheel01       { 0.0f };  // 0..1 — scales LFO1 depth (fixed routing)
-        float pitchBendSemis   { 0.0f };
+        // LFO2 (key-triggered, per-voice) — routed only via the mod matrix
+        Lfo::Shape lfo2Shape { Lfo::Shape::Triangle };
+        float lfo2RateHz      { 2.0f };
+        float lfo2FadeInSec   { 0.0f };
+
+        // ENV3 (free) — routed only via the mod matrix
+        float env3A { 0.01f }, env3D { 0.30f }, env3S { 0.5f }, env3R { 0.40f };
+
+        // Mod matrix
+        std::array<ModSlot, params::kNumModSlots> modSlots {};
+
+        // Modulation sources from host / global engine
+        float modWheel01       { 0.0f };  // 0..1
+        float pitchBendSemis   { 0.0f };  // already scaled by bend range (fixed routing)
+        float pitchBendNorm    { 0.0f };  // -1..+1 (matrix source)
+        float aftertouch01     { 0.0f };  // 0..1 (matrix source)
+        float lfo3Value        { 0.0f };  // -1..+1, global LFO (matrix source)
 
         // Performance / voicing
         float pan              { 0.0f };  // -1..+1 master pan offset applied per-voice
@@ -122,10 +144,12 @@ namespace bacillum::dsp
         bool       useLadder { false };
         AdsrLinear amp;
         AdsrLinear fEnv;
+        AdsrLinear env3;
         Lfo        lfo1;
+        Lfo        lfo2;
         DcBlocker  dcBlock;
 
-        // Source levels (cached from params)
+        // Effective per-sample source levels (base ± matrix modulation).
         float osc1Level    { 0.8f };
         float osc2Level    { 0.0f };
         float subLevel     { 0.0f };
@@ -136,6 +160,14 @@ namespace bacillum::dsp
         int                subOctOffset { -12 };  // semitones from base
         params::NoiseType  noiseType { params::NoiseType::White };
 
+        // Base values (from params); matrix modulates around these.
+        float osc1LevelBase  { 0.8f }, osc2LevelBase { 0.0f };
+        float subLevelBase   { 0.0f }, noiseLevelBase { 0.0f };
+        float osc1PWBase     { 0.5f }, osc2PWBase { 0.5f };
+        float filterRes01Base{ 0.1f }, filterDrive01Base { 0.0f };
+        float panBase        { 0.0f };
+        float lfo1RateBase   { 4.0f }, lfo2RateBase { 2.0f };
+
         // Filter modulation
         float filterCutoffBase { 12000.0f };
         float filterKeytrack   { 0.0f };
@@ -143,11 +175,19 @@ namespace bacillum::dsp
         float filterVelAmount  { 0.0f };
         float filterDrive01    { 0.0f };
 
-        // LFO1 mod depths (already scaled by modwheel before reaching here? no — we read modWheel here)
+        // LFO1 mod depths (dedicated routings; matrix adds on top)
         float lfo1ToCutoffOct { 0.0f };
         float lfo1ToPitchSemi { 0.0f };
         float lfo1ToAmp01     { 0.0f };
         float modWheel01      { 0.0f };
+
+        // Matrix state
+        std::array<ModSlot, params::kNumModSlots> modSlots {};
+        float pitchBendNorm   { 0.0f };
+        float aftertouch01    { 0.0f };
+        float lfo3Value       { 0.0f };
+        float randomValue     { 0.0f };   // per-note random, set on noteOn
+        float matrixAmp       { 1.0f };   // amp multiplier from matrix (control-rate)
 
         // Pitch
         int   midiNote        { -1 };
@@ -162,7 +202,8 @@ namespace bacillum::dsp
         float currentNote     { 60.0f };
         float targetNote      { 60.0f };
         float glideCoef       { 1.0f };   // per control-step; 1 = instant
-        float pitchModSemis   { 0.0f };   // LFO→pitch, refreshed at control rate
+        float pitchModSemis   { 0.0f };   // LFO1+matrix → pitch (both oscs)
+        float osc2ModSemis    { 0.0f };   // matrix → OSC2 pitch only
 
         // Unison
         float unisonCents { 0.0f };

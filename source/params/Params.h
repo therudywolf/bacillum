@@ -1,9 +1,12 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
 
 namespace bacillum::params
 {
+    inline constexpr int kNumModSlots = 8;
+
     namespace ids
     {
         inline constexpr auto masterGain    = "master_gain";
@@ -56,6 +59,31 @@ namespace bacillum::params
         inline constexpr auto arpRate        = "arp_rate";      // SyncDivision (step length)
         inline constexpr auto arpOctaves     = "arp_octaves";   // 1..4
         inline constexpr auto arpGate        = "arp_gate";      // 0..1
+
+        // LFO2 (per-voice, key-triggered)
+        inline constexpr auto lfo2Shape      = "lfo2_shape";
+        inline constexpr auto lfo2Rate       = "lfo2_rate_hz";
+        inline constexpr auto lfo2Sync       = "lfo2_sync";
+        inline constexpr auto lfo2FadeIn     = "lfo2_fade_in";
+
+        // LFO3 (global, free-running)
+        inline constexpr auto lfo3Shape      = "lfo3_shape";
+        inline constexpr auto lfo3Rate       = "lfo3_rate_hz";
+        inline constexpr auto lfo3Sync       = "lfo3_sync";
+
+        // ENV3 (free assignable, ADSR)
+        inline constexpr auto env3Attack     = "env3_attack";
+        inline constexpr auto env3Decay      = "env3_decay";
+        inline constexpr auto env3Sustain    = "env3_sustain";
+        inline constexpr auto env3Release    = "env3_release";
+
+        // Mod matrix: kNumModSlots × (source, dest, depth)
+        inline constexpr std::array<const char*, kNumModSlots> modSrc {
+            "mod1_src","mod2_src","mod3_src","mod4_src","mod5_src","mod6_src","mod7_src","mod8_src" };
+        inline constexpr std::array<const char*, kNumModSlots> modDst {
+            "mod1_dst","mod2_dst","mod3_dst","mod4_dst","mod5_dst","mod6_dst","mod7_dst","mod8_dst" };
+        inline constexpr std::array<const char*, kNumModSlots> modDepth {
+            "mod1_dep","mod2_dep","mod3_dep","mod4_dep","mod5_dep","mod6_dep","mod7_dep","mod8_dep" };
 
         // Filter
         inline constexpr auto filterMode      = "filter_mode";
@@ -186,6 +214,33 @@ namespace bacillum::params
     {
         Up = 0, Down, UpDown, Random, AsPlayed,
         NumModes
+    };
+
+    // Modulation-matrix sources. Order must match the source-value array
+    // assembled in Voice and the name table in Params.cpp.
+    enum class ModSource : int
+    {
+        None = 0,
+        Env1, Env2, Env3,         // filter env, amp env, free env
+        Lfo1, Lfo2, Lfo3,         // 2 per-voice + 1 global
+        Velocity, Note,
+        ModWheel, PitchBend, Aftertouch,
+        Random,                   // per-note random, fixed for the note's life
+        Constant,                 // always 1.0 (offset / bias)
+        NumSources
+    };
+
+    // Modulation-matrix destinations.
+    enum class ModDest : int
+    {
+        None = 0,
+        Cutoff, Resonance, Drive,
+        Pitch, Osc2Pitch,
+        Osc1PW, Osc2PW,
+        Osc1Level, Osc2Level, SubLevel, NoiseLevel,
+        Pan, Amp,
+        Lfo1Rate, Lfo2Rate,
+        NumDests
     };
 
     enum class PolyMode : int

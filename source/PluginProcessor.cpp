@@ -47,6 +47,27 @@ namespace bacillum
         pArpOctaves     = apvts.getRawParameterValue (params::ids::arpOctaves);
         pArpGate        = apvts.getRawParameterValue (params::ids::arpGate);
 
+        pLfo2Shape      = apvts.getRawParameterValue (params::ids::lfo2Shape);
+        pLfo2Rate       = apvts.getRawParameterValue (params::ids::lfo2Rate);
+        pLfo2Sync       = apvts.getRawParameterValue (params::ids::lfo2Sync);
+        pLfo2FadeIn     = apvts.getRawParameterValue (params::ids::lfo2FadeIn);
+
+        pLfo3Shape      = apvts.getRawParameterValue (params::ids::lfo3Shape);
+        pLfo3Rate       = apvts.getRawParameterValue (params::ids::lfo3Rate);
+        pLfo3Sync       = apvts.getRawParameterValue (params::ids::lfo3Sync);
+
+        pEnv3Attack     = apvts.getRawParameterValue (params::ids::env3Attack);
+        pEnv3Decay      = apvts.getRawParameterValue (params::ids::env3Decay);
+        pEnv3Sustain    = apvts.getRawParameterValue (params::ids::env3Sustain);
+        pEnv3Release    = apvts.getRawParameterValue (params::ids::env3Release);
+
+        for (int i = 0; i < params::kNumModSlots; ++i)
+        {
+            pModSrc[i]   = apvts.getRawParameterValue (params::ids::modSrc[(size_t) i]);
+            pModDst[i]   = apvts.getRawParameterValue (params::ids::modDst[(size_t) i]);
+            pModDepth[i] = apvts.getRawParameterValue (params::ids::modDepth[(size_t) i]);
+        }
+
         pFilterMode     = apvts.getRawParameterValue (params::ids::filterMode);
         pFilterCutoff   = apvts.getRawParameterValue (params::ids::filterCutoff);
         pFilterRes      = apvts.getRawParameterValue (params::ids::filterRes);
@@ -103,6 +124,7 @@ namespace bacillum
         currentSampleRate = static_cast<float>(sampleRate);
         voiceManager.prepare (sampleRate);
         arp.prepare (sampleRate);
+        lfo3Global.prepare (sampleRate);
         chorus.prepare (sampleRate, samplesPerBlock);
         delay.prepare (sampleRate, 4.0);
         reverb.setSampleRate (sampleRate);
@@ -207,8 +229,44 @@ namespace bacillum
         // Glide
         out.glideTime = pGlideTime->load();
 
-        // Mod sources from MIDI / GUI
+        // LFO2 (per-voice). Tempo sync overrides the manual rate.
+        out.lfo2Shape = static_cast<dsp::Lfo::Shape>(
+            juce::jlimit (0, (int) params::LfoShape::NumShapes - 1, static_cast<int>(pLfo2Shape->load())));
+        out.lfo2RateHz    = pLfo2Rate->load();
+        out.lfo2FadeInSec = pLfo2FadeIn->load();
+        {
+            const auto s = loadChoice<params::SyncDivision>(pLfo2Sync, (int) params::SyncDivision::NumDivisions);
+            const float beats = params::syncBeats(s);
+            if (beats > 0.0f)
+            {
+                const float cyc = beats * (60.0f / juce::jmax(1.0f, currentBpm));
+                if (cyc > 0.0001f) out.lfo2RateHz = 1.0f / cyc;
+            }
+        }
+
+        // ENV3
+        out.env3A = pEnv3Attack->load();
+        out.env3D = pEnv3Decay->load();
+        out.env3S = pEnv3Sustain->load();
+        out.env3R = pEnv3Release->load();
+
+        // Mod matrix slots
+        for (int i = 0; i < params::kNumModSlots; ++i)
+        {
+            out.modSlots[(size_t) i].source =
+                static_cast<params::ModSource>(juce::jlimit (0, (int) params::ModSource::NumSources - 1,
+                                                             static_cast<int>(pModSrc[i]->load())));
+            out.modSlots[(size_t) i].dest =
+                static_cast<params::ModDest>(juce::jlimit (0, (int) params::ModDest::NumDests - 1,
+                                                           static_cast<int>(pModDst[i]->load())));
+            out.modSlots[(size_t) i].depth = pModDepth[i]->load();
+        }
+
+        // Mod sources from MIDI / GUI / global engine
         out.modWheel01     = currentModWheel01;
+        out.aftertouch01   = currentAftertouch01;
+        out.pitchBendNorm  = currentPitchBendNorm;
+        out.lfo3Value      = currentLfo3Value;
         const float pbRange = pPitchBendRange->load();
         out.pitchBendSemis = currentPitchBendNorm * pbRange;
 
@@ -391,6 +449,23 @@ namespace bacillum
             if (auto pos = ph->getPosition())
                 if (auto bpm = pos->getBpm())
                     currentBpm = static_cast<float>(*bpm);
+
+        // Global LFO3: advance once per block (block-rate), value shared by all voices.
+        lfo3Global.setShape (static_cast<dsp::Lfo::Shape>(
+            juce::jlimit (0, (int) params::LfoShape::NumShapes - 1, static_cast<int>(pLfo3Shape->load()))));
+        {
+            float rate = pLfo3Rate->load();
+            const auto s = loadChoice<params::SyncDivision>(pLfo3Sync, (int) params::SyncDivision::NumDivisions);
+            const float beats = params::syncBeats(s);
+            if (beats > 0.0f)
+            {
+                const float cyc = beats * (60.0f / juce::jmax(1.0f, currentBpm));
+                if (cyc > 0.0001f) rate = 1.0f / cyc;
+            }
+            lfo3Global.setRateHz (rate);
+        }
+        for (int i = 0; i < numSamples; ++i)
+            currentLfo3Value = lfo3Global.tick();
 
         // Inject MIDI from on-screen / PC keyboard into the incoming stream.
         keyboardState.processNextMidiBuffer (midi, 0, numSamples, true);

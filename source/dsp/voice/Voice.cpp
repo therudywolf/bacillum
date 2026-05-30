@@ -23,7 +23,9 @@ namespace bacillum::dsp
         ladder.prepare(sr);
         amp.prepare(sr);
         fEnv.prepare(sr);
+        env3.prepare(sr);
         lfo1.prepare(sr);
+        lfo2.prepare(sr);
         dcBlock.prepare(sr);
         reset();
     }
@@ -41,7 +43,9 @@ namespace bacillum::dsp
         ladder.reset();
         amp.reset();
         fEnv.reset();
+        env3.reset();
         lfo1.reset();
+        lfo2.reset();
         dcBlock.reset();
         midiNote = -1;
         velocity = 0.0f;
@@ -53,6 +57,9 @@ namespace bacillum::dsp
         currentNote = targetNote = 60.0f;
         glideCoef = 1.0f;
         pitchModSemis = 0.0f;
+        osc2ModSemis = 0.0f;
+        randomValue = 0.0f;
+        matrixAmp = 1.0f;
         controlUpdateCounter = 0;
         startStamp = 0;
     }
@@ -95,25 +102,32 @@ namespace bacillum::dsp
         recomputeOscFrequencies();
         amp.noteOn();
         fEnv.noteOn();
+        env3.noteOn();
         lfo1.retrigger();
+        lfo2.retrigger();
 
         const std::uint32_t seed = 0x9E3779B9u
                                  ^ (static_cast<std::uint32_t>(n) * 2654435761u)
                                  ^ (static_cast<std::uint32_t>(velocity * 1000.0f) * 0xCA8B2A4Du);
         whiteNoise.reset(seed);
         pinkNoise.reset(seed ^ 0xDEADBEEFu);
+
+        // Per-note random source: deterministic hash of the seed → [-1, +1].
+        randomValue = static_cast<float>((seed >> 9) & 0xFFFFu) * (1.0f / 32768.0f) - 1.0f;
     }
 
     void Voice::noteOff(float) noexcept
     {
         amp.noteOff();
         fEnv.noteOff();
+        env3.noteOff();
     }
 
     void Voice::killFast() noexcept
     {
         amp.killFast();
         fEnv.killFast();
+        env3.killFast();
     }
 
     void Voice::setNote(int n) noexcept
@@ -139,11 +153,13 @@ namespace bacillum::dsp
         // For non-HyperSaw OSC, configure the classic VA oscillator.
         if (osc1Wave != params::Waveform::HyperSaw)
             osc1.setWaveform(osc1Wave);
-        osc1.setPulsewidth(p.osc1Pulsewidth);
-
         if (osc2Wave != params::Waveform::HyperSaw)
             osc2.setWaveform(osc2Wave);
-        osc2.setPulsewidth(p.osc2Pulsewidth);
+
+        osc1PWBase = p.osc1Pulsewidth;
+        osc2PWBase = p.osc2Pulsewidth;
+        osc1.setPulsewidth(osc1PWBase);
+        osc2.setPulsewidth(osc2PWBase);
 
         // Sub osc waveform & octave.
         subWave = p.subWaveform;
@@ -156,10 +172,11 @@ namespace bacillum::dsp
         }
         subOctOffset = (p.subOctave == params::SubOctave::Minus2) ? -24 : -12;
 
-        osc1Level  = p.osc1Level;
-        osc2Level  = p.osc2Level;
-        subLevel   = p.subLevel;
-        noiseLevel = p.noiseLevel;
+        // Source levels — base values; the matrix modulates around them.
+        osc1LevelBase = p.osc1Level;   osc1Level  = osc1LevelBase;
+        osc2LevelBase = p.osc2Level;   osc2Level  = osc2LevelBase;
+        subLevelBase  = p.subLevel;    subLevel   = subLevelBase;
+        noiseLevelBase= p.noiseLevel;  noiseLevel = noiseLevelBase;
         noiseType  = p.noiseType;
 
         osc1OffsetSemis = p.osc1PitchSemi + p.osc1DetuneCents / 100.0f;
@@ -168,13 +185,15 @@ namespace bacillum::dsp
         recomputeOscFrequencies();
 
         applyFilterMode(p.filterMode);
-        filterCutoffBase = p.filterCutoff;
-        filter.setResonance01(p.filterRes01);
-        ladder.setResonance01(p.filterRes01);
-        filterDrive01    = p.filterDrive01;
-        filterKeytrack   = p.filterKeytrack;
-        filterEnvAmount  = p.filterEnvAmount;
-        filterVelAmount  = p.filterVelAmount;
+        filterCutoffBase  = p.filterCutoff;
+        filterRes01Base   = p.filterRes01;
+        filter.setResonance01(filterRes01Base);
+        ladder.setResonance01(filterRes01Base);
+        filterDrive01Base = p.filterDrive01;
+        filterDrive01     = filterDrive01Base;
+        filterKeytrack    = p.filterKeytrack;
+        filterEnvAmount   = p.filterEnvAmount;
+        filterVelAmount   = p.filterVelAmount;
 
         // Glide coefficient per control step (one-pole approach).
         if (p.glideTime <= 0.001f)
@@ -198,16 +217,34 @@ namespace bacillum::dsp
         fEnv.setSustain(p.fEnvS);
         fEnv.setRelease(p.fEnvR);
 
+        env3.setAttack (p.env3A);
+        env3.setDecay  (p.env3D);
+        env3.setSustain(p.env3S);
+        env3.setRelease(p.env3R);
+
         lfo1.setShape(p.lfo1Shape);
-        lfo1.setRateHz(p.lfo1RateHz);
+        lfo1RateBase = p.lfo1RateHz;
+        lfo1.setRateHz(lfo1RateBase);
         lfo1.setFadeInSec(p.lfo1FadeInSec);
         lfo1ToCutoffOct = p.lfo1ToCutoffOct;
         lfo1ToPitchSemi = p.lfo1ToPitchSemi;
         lfo1ToAmp01     = p.lfo1ToAmp01;
-        modWheel01      = p.modWheel01;
 
-        // Equal-power per-voice pan: pan = master + unison.
-        const float pan = juce::jlimit(-1.0f, 1.0f, p.pan + unisonPan);
+        lfo2.setShape(p.lfo2Shape);
+        lfo2RateBase = p.lfo2RateHz;
+        lfo2.setRateHz(lfo2RateBase);
+        lfo2.setFadeInSec(p.lfo2FadeInSec);
+
+        // Matrix + source scalars.
+        modSlots       = p.modSlots;
+        modWheel01     = p.modWheel01;
+        pitchBendNorm  = p.pitchBendNorm;
+        aftertouch01   = p.aftertouch01;
+        lfo3Value      = p.lfo3Value;
+
+        // Equal-power per-voice pan: base = master + unison (matrix adds at control rate).
+        panBase = p.pan;
+        const float pan = juce::jlimit(-1.0f, 1.0f, panBase + unisonPan);
         const float a = (pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi;
         panLeft  = std::cos(a);
         panRight = std::sin(a);
@@ -226,7 +263,7 @@ namespace bacillum::dsp
         osc1.setFrequency(f1);
         hyper1.setFrequency(f1);
 
-        const float ratio2 = std::pow(2.0f, (osc2OffsetSemis + unisonSemis + bend) * (1.0f / 12.0f));
+        const float ratio2 = std::pow(2.0f, (osc2OffsetSemis + osc2ModSemis + unisonSemis + bend) * (1.0f / 12.0f));
         const float f2 = juce::jlimit(0.01f, maxHz, baseHz * ratio2);
         osc2.setFrequency(f2);
         hyper2.setFrequency(f2);
@@ -243,31 +280,23 @@ namespace bacillum::dsp
         const float velGain = velocity * velocity;
         const float keytrackSemis = filterKeytrack * static_cast<float>(midiNote - 60);
 
-        // Cache pan into locals (no atomic per-sample).
-        const float pL = panLeft;
-        const float pR = panRight;
-
-        // LFO1 depths apply at full strength from their own params (so presets
-        // sound without touching the wheel). The mod wheel ADDS vibrato on top
-        // — the classic "wheel = vibrato" routing of the Virus / Nord.
+        // Dedicated LFO1 routings; the mod wheel ADDS vibrato (Virus/Nord style).
         constexpr float kModWheelVibratoSemis = 0.5f;
         const float depthCutoffOct = lfo1ToCutoffOct;
         const float depthPitchSemi = lfo1ToPitchSemi + modWheel01 * kModWheelVibratoSemis;
         const float depthAmp       = lfo1ToAmp01;
 
-        // Pitch modulation is applied by recomputing OSC frequency periodically.
-        // Keep a smoothed LFO sample for cutoff between updates.
         float lfo1Value = 0.0f;
+        float lfo2Value = 0.0f;
 
         for (int n = 0; n < numSamples; ++n)
         {
             const int i = startSample + n;
 
-            // Tick LFO once per sample so all rates are usable, but only
-            // *apply* its value to frequency/cutoff every kControlUpdateInterval.
             lfo1Value = lfo1.tick();
+            lfo2Value = lfo2.tick();
 
-            // ---- Source mix ---------------------------------------------
+            // ---- Source mix (effective levels, updated at control rate) -
             const float o1 = (osc1Wave == params::Waveform::HyperSaw
                                 ? hyper1.tick() : osc1.tick()) * osc1Level;
             const float o2 = (osc2Wave == params::Waveform::HyperSaw
@@ -278,7 +307,6 @@ namespace bacillum::dsp
                                 : pinkNoise.tick()) * noiseLevel;
             float src = o1 + o2 + os + on;
 
-            // ---- Drive ---------------------------------------------------
             if (filterDrive01 > 0.001f)
             {
                 const float pre  = 1.0f + filterDrive01 * 6.0f;
@@ -286,11 +314,12 @@ namespace bacillum::dsp
                 src = std::tanh(src * pre) * comp;
             }
 
-            // ---- Control-rate updates (glide + cutoff + LFO→pitch) ------
             const float fe = fEnv.tick();
+            const float e3 = env3.tick();
+
+            // ---- Control-rate block: glide + mod matrix + all dests -----
             if (controlUpdateCounter == 0)
             {
-                // Glide: advance currentNote toward targetNote.
                 if (glideCoef < 0.999f)
                 {
                     currentNote += (targetNote - currentNote) * glideCoef;
@@ -298,18 +327,99 @@ namespace bacillum::dsp
                         currentNote = targetNote;
                 }
 
-                // LFO1 → pitch, folded into the frequency recompute.
-                pitchModSemis = lfo1Value * depthPitchSemi;
+                // Assemble mod sources (index by ModSource enum order).
+                constexpr int kNumSrc = static_cast<int>(params::ModSource::NumSources);
+                float sv[kNumSrc] = { 0.0f };
+                sv[(int) params::ModSource::Env1]       = fe;
+                sv[(int) params::ModSource::Env2]       = amp.getLevel();
+                sv[(int) params::ModSource::Env3]       = e3;
+                sv[(int) params::ModSource::Lfo1]       = lfo1Value;
+                sv[(int) params::ModSource::Lfo2]       = lfo2Value;
+                sv[(int) params::ModSource::Lfo3]       = lfo3Value;
+                sv[(int) params::ModSource::Velocity]   = velocity;
+                sv[(int) params::ModSource::Note]       = juce::jlimit(-1.0f, 1.0f,
+                                                              static_cast<float>(midiNote - 60) * (1.0f / 24.0f));
+                sv[(int) params::ModSource::ModWheel]   = modWheel01;
+                sv[(int) params::ModSource::PitchBend]  = pitchBendNorm;
+                sv[(int) params::ModSource::Aftertouch] = aftertouch01;
+                sv[(int) params::ModSource::Random]     = randomValue;
+                sv[(int) params::ModSource::Constant]   = 1.0f;
+
+                // Accumulate per destination.
+                float dCut = 0, dRes = 0, dDrive = 0, dPitch = 0, dOsc2 = 0;
+                float dPw1 = 0, dPw2 = 0, dL1 = 0, dL2 = 0, dSub = 0, dNz = 0;
+                float dPan = 0, dAmp = 0, dR1 = 0, dR2 = 0;
+
+                for (const auto& slot : modSlots)
+                {
+                    if (slot.source == params::ModSource::None
+                        || slot.dest == params::ModDest::None
+                        || slot.depth == 0.0f)
+                        continue;
+
+                    const float v = sv[(int) slot.source] * slot.depth;
+                    switch (slot.dest)
+                    {
+                        case params::ModDest::Cutoff:     dCut   += v; break;
+                        case params::ModDest::Resonance:  dRes   += v; break;
+                        case params::ModDest::Drive:      dDrive += v; break;
+                        case params::ModDest::Pitch:      dPitch += v; break;
+                        case params::ModDest::Osc2Pitch:  dOsc2  += v; break;
+                        case params::ModDest::Osc1PW:     dPw1   += v; break;
+                        case params::ModDest::Osc2PW:     dPw2   += v; break;
+                        case params::ModDest::Osc1Level:  dL1    += v; break;
+                        case params::ModDest::Osc2Level:  dL2    += v; break;
+                        case params::ModDest::SubLevel:   dSub   += v; break;
+                        case params::ModDest::NoiseLevel: dNz    += v; break;
+                        case params::ModDest::Pan:        dPan   += v; break;
+                        case params::ModDest::Amp:        dAmp   += v; break;
+                        case params::ModDest::Lfo1Rate:   dR1    += v; break;
+                        case params::ModDest::Lfo2Rate:   dR2    += v; break;
+                        default: break;
+                    }
+                }
+
+                // Pitch: LFO1 vibrato + matrix (1 unit = 12 semitones).
+                pitchModSemis = lfo1Value * depthPitchSemi + dPitch * 12.0f;
+                osc2ModSemis  = dOsc2 * 12.0f;
                 recomputeOscFrequencies();
 
-                // Cutoff modulation (octaves).
+                // Cutoff (octaves): env + vel + keytrack + LFO1 + matrix (1 unit = 5 oct).
                 const float envOct = filterEnvAmount * 5.0f * fe;
                 const float velOct = filterVelAmount * 3.0f * velocity;
                 const float ktOct  = keytrackSemis * (1.0f / 12.0f);
                 const float lfoOct = lfo1Value * depthCutoffOct;
-                const float cutoff = filterCutoffBase * std::pow(2.0f, envOct + velOct + ktOct + lfoOct);
+                const float cutoff = filterCutoffBase * std::pow(2.0f,
+                                        envOct + velOct + ktOct + lfoOct + dCut * 5.0f);
                 filter.setCutoff(cutoff);
                 ladder.setCutoff(cutoff);
+
+                // Resonance / drive.
+                const float resEff = juce::jlimit(0.0f, 1.0f, filterRes01Base + dRes);
+                filter.setResonance01(resEff);
+                ladder.setResonance01(resEff);
+                filterDrive01 = juce::jlimit(0.0f, 1.0f, filterDrive01Base + dDrive);
+
+                // Source levels.
+                osc1Level  = juce::jlimit(0.0f, 1.5f, osc1LevelBase  + dL1);
+                osc2Level  = juce::jlimit(0.0f, 1.5f, osc2LevelBase  + dL2);
+                subLevel   = juce::jlimit(0.0f, 1.5f, subLevelBase   + dSub);
+                noiseLevel = juce::jlimit(0.0f, 1.5f, noiseLevelBase + dNz);
+
+                // Pulse width.
+                osc1.setPulsewidth(juce::jlimit(0.05f, 0.95f, osc1PWBase + dPw1 * 0.45f));
+                osc2.setPulsewidth(juce::jlimit(0.05f, 0.95f, osc2PWBase + dPw2 * 0.45f));
+
+                // Pan (equal-power).
+                const float panEff = juce::jlimit(-1.0f, 1.0f, panBase + unisonPan + dPan);
+                const float a = (panEff + 1.0f) * 0.25f * juce::MathConstants<float>::pi;
+                panLeft  = std::cos(a);
+                panRight = std::sin(a);
+
+                // LFO rate scaling (±2 octaves) and amp matrix gain.
+                lfo1.setRateHz(lfo1RateBase * std::pow(2.0f, dR1 * 2.0f));
+                lfo2.setRateHz(lfo2RateBase * std::pow(2.0f, dR2 * 2.0f));
+                matrixAmp = juce::jlimit(0.0f, 2.0f, 1.0f + dAmp);
             }
             if (++controlUpdateCounter >= kControlUpdateInterval)
                 controlUpdateCounter = 0;
@@ -317,17 +427,16 @@ namespace bacillum::dsp
             // ---- Filter (SVF or Moog ladder) ----------------------------
             const float filtered = useLadder ? ladder.process(src) : filter.process(src);
 
-            // ---- VCA + tremolo ------------------------------------------
+            // ---- VCA: amp env × velocity × LFO1 tremolo × matrix amp ----
             const float env = amp.tick();
-            // Tremolo: LFO -1..+1 → amplitude scale (1 - depth + depth * (lfo*0.5 + 0.5))
             const float tremolo = (depthAmp > 0.0f)
                 ? juce::jlimit(0.0f, 2.0f, 1.0f - depthAmp + depthAmp * (lfo1Value * 0.5f + 0.5f))
                 : 1.0f;
 
-            const float voiceOut = dcBlock.process(filtered * env * velGain * tremolo);
+            const float voiceOut = dcBlock.process(filtered * env * velGain * tremolo * matrixAmp);
 
-            outL[i] += voiceOut * pL;
-            outR[i] += voiceOut * pR;
+            outL[i] += voiceOut * panLeft;
+            outR[i] += voiceOut * panRight;
         }
     }
 }

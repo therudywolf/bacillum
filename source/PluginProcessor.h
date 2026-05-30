@@ -109,6 +109,24 @@ namespace bacillum
         std::atomic<float>* pArpOctaves     { nullptr };
         std::atomic<float>* pArpGate        { nullptr };
 
+        std::atomic<float>* pLfo2Shape      { nullptr };
+        std::atomic<float>* pLfo2Rate       { nullptr };
+        std::atomic<float>* pLfo2Sync       { nullptr };
+        std::atomic<float>* pLfo2FadeIn     { nullptr };
+
+        std::atomic<float>* pLfo3Shape      { nullptr };
+        std::atomic<float>* pLfo3Rate       { nullptr };
+        std::atomic<float>* pLfo3Sync       { nullptr };
+
+        std::atomic<float>* pEnv3Attack     { nullptr };
+        std::atomic<float>* pEnv3Decay      { nullptr };
+        std::atomic<float>* pEnv3Sustain    { nullptr };
+        std::atomic<float>* pEnv3Release    { nullptr };
+
+        std::atomic<float>* pModSrc[params::kNumModSlots]   { nullptr };
+        std::atomic<float>* pModDst[params::kNumModSlots]   { nullptr };
+        std::atomic<float>* pModDepth[params::kNumModSlots] { nullptr };
+
         std::atomic<float>* pFilterMode     { nullptr };
         std::atomic<float>* pFilterCutoff   { nullptr };
         std::atomic<float>* pFilterRes      { nullptr };
@@ -160,6 +178,7 @@ namespace bacillum
 
         dsp::VoiceManager voiceManager;
         dsp::Arpeggiator  arp;
+        dsp::Lfo          lfo3Global;   // global LFO, advanced per block
         dsp::ChorusFx     chorus;
         dsp::StereoDelay  delay;
         juce::Reverb      reverb;
@@ -174,6 +193,7 @@ namespace bacillum
         float currentModWheel01    { 0.0f };
         float currentAftertouch01  { 0.0f };
         float currentBpm           { 120.0f };  // from host playhead, fallback 120
+        float currentLfo3Value     { 0.0f };    // global LFO, one value per block
 
         // Last applied unison config — used to avoid re-applying every block.
         int   lastUnisonCount { 1 };

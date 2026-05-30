@@ -123,6 +123,52 @@ namespace bacillum::params
         }
     }
 
+    static juce::String modSourceName(int i)
+    {
+        switch (static_cast<ModSource>(i))
+        {
+            case ModSource::None:       return "—";
+            case ModSource::Env1:       return "Filt Env";
+            case ModSource::Env2:       return "Amp Env";
+            case ModSource::Env3:       return "Env 3";
+            case ModSource::Lfo1:       return "LFO 1";
+            case ModSource::Lfo2:       return "LFO 2";
+            case ModSource::Lfo3:       return "LFO 3";
+            case ModSource::Velocity:   return "Velocity";
+            case ModSource::Note:       return "Note";
+            case ModSource::ModWheel:   return "Mod Wheel";
+            case ModSource::PitchBend:  return "Pitch Bend";
+            case ModSource::Aftertouch: return "Aftertouch";
+            case ModSource::Random:     return "Random";
+            case ModSource::Constant:   return "Constant";
+            default:                    return {};
+        }
+    }
+
+    static juce::String modDestName(int i)
+    {
+        switch (static_cast<ModDest>(i))
+        {
+            case ModDest::None:       return "—";
+            case ModDest::Cutoff:     return "Cutoff";
+            case ModDest::Resonance:  return "Resonance";
+            case ModDest::Drive:      return "Drive";
+            case ModDest::Pitch:      return "Pitch";
+            case ModDest::Osc2Pitch:  return "OSC2 Pitch";
+            case ModDest::Osc1PW:     return "OSC1 PW";
+            case ModDest::Osc2PW:     return "OSC2 PW";
+            case ModDest::Osc1Level:  return "OSC1 Level";
+            case ModDest::Osc2Level:  return "OSC2 Level";
+            case ModDest::SubLevel:   return "Sub Level";
+            case ModDest::NoiseLevel: return "Noise Level";
+            case ModDest::Pan:        return "Pan";
+            case ModDest::Amp:        return "Amp";
+            case ModDest::Lfo1Rate:   return "LFO1 Rate";
+            case ModDest::Lfo2Rate:   return "LFO2 Rate";
+            default:                  return {};
+        }
+    }
+
     static juce::String lfoShapeName(int i)
     {
         switch (static_cast<LfoShape>(i))
@@ -314,6 +360,43 @@ namespace bacillum::params
         layout.add(std::make_unique<juce::AudioParameterInt>(
             PID{ ids::arpOctaves, kVersionHint }, "Arp Octaves", 1, 4, 1));
         addF(ids::arpGate, "Arp Gate", unit01, 0.6f);
+
+        // --- LFO2 ----------------------------------------------------------
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::lfo2Shape, kVersionHint }, "LFO2 Shape", lfoShapes, static_cast<int>(LfoShape::Triangle)));
+        addF(ids::lfo2Rate, "LFO2 Rate", lfoRate, 2.0f, "Hz");
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::lfo2Sync, kVersionHint }, "LFO2 Sync", syncDivs, static_cast<int>(SyncDivision::Free)));
+        addF(ids::lfo2FadeIn, "LFO2 FadeIn", timeRange, 0.0f, "s");
+
+        // --- LFO3 (global) -------------------------------------------------
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::lfo3Shape, kVersionHint }, "LFO3 Shape", lfoShapes, static_cast<int>(LfoShape::Sine)));
+        addF(ids::lfo3Rate, "LFO3 Rate", lfoRate, 0.5f, "Hz");
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::lfo3Sync, kVersionHint }, "LFO3 Sync", syncDivs, static_cast<int>(SyncDivision::Free)));
+
+        // --- ENV3 (free) ---------------------------------------------------
+        addF(ids::env3Attack,  "Env3 A", timeRange, 0.01f, "s");
+        addF(ids::env3Decay,   "Env3 D", timeRange, 0.30f, "s");
+        addF(ids::env3Sustain, "Env3 S", unit01,    0.5f);
+        addF(ids::env3Release, "Env3 R", timeRange, 0.40f, "s");
+
+        // --- Mod matrix (8 slots) -----------------------------------------
+        const auto modSources = makeChoices(static_cast<int>(ModSource::NumSources), modSourceName);
+        const auto modDests   = makeChoices(static_cast<int>(ModDest::NumDests),     modDestName);
+        for (int i = 0; i < kNumModSlots; ++i)
+        {
+            layout.add(std::make_unique<juce::AudioParameterChoice>(
+                PID{ ids::modSrc[(size_t) i], kVersionHint },
+                "Mod " + juce::String(i + 1) + " Src", modSources, 0));
+            layout.add(std::make_unique<juce::AudioParameterChoice>(
+                PID{ ids::modDst[(size_t) i], kVersionHint },
+                "Mod " + juce::String(i + 1) + " Dst", modDests, 0));
+            layout.add(std::make_unique<juce::AudioParameterFloat>(
+                PID{ ids::modDepth[(size_t) i], kVersionHint },
+                "Mod " + juce::String(i + 1) + " Depth", bipolar, 0.0f));
+        }
 
         // --- Global --------------------------------------------------------
         layout.add(std::make_unique<juce::AudioParameterChoice>(
