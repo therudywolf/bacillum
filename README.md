@@ -22,9 +22,9 @@ root@bacillum:~$ ./synth -mode poly -voices 16 -engine VA
 | Sub osc | done | Independent sine / triangle / square, -1 or -2 octave switch, own level. |
 | Noise | done | White (xorshift32, per-note seed) + pink (Paul Kellet). |
 | Filter | done | Two models, selectable per patch: **Cytomic TPT SVF** (LP12, LP24 cascade, HP, BP, Notch, Peak) and **Moog ladder** (Huovilainen 2004, thermal non-linear, 2× oversampled — LP24/LP12). Drive (tanh) pre-filter. |
-| Filter envelope | done | Linear ADSR, ±5 octaves cutoff mod, key-tracking, velocity-to-cutoff. |
-| Amp envelope | done | Linear ADSR with soft-retrigger (no clicks on overlapping notes), velocity-squared response. |
-| LFO 1 | done | Per-voice key-triggered; 8 shapes (sine/tri/saw↑/saw↓/square/PWM/S&H/smooth-random); fade-in; free or **tempo-synced** (1/1…1/32, dotted/triplet); routings to cutoff (±5 oct), pitch (±12 semi), amp (tremolo). Mod-wheel **adds** vibrato on top (Virus/Nord-style), so LFO knobs always work standalone. |
+| Envelopes ×3 | done | ENV1 (filter), ENV2 (amp, soft-retrigger, velocity²), ENV3 (free, matrix-only). Linear ADSR. |
+| LFO ×3 | done | LFO1 + LFO2 per-voice key-triggered, LFO3 global (free-running). 8 shapes (sine/tri/saw↑/saw↓/square/PWM/S&H/smooth-random); fade-in; free or **tempo-synced** (1/1…1/32, dotted/triplet). LFO1 has dedicated cutoff/pitch/amp routings; LFO2/3 route via the matrix. Mod-wheel **adds** vibrato on top (Virus/Nord-style). |
+| **Mod Matrix** | done | **8 user slots**, each `source → destination × depth (±1)`. 14 sources (ENV1-3, LFO1-3, Velocity, Note, ModWheel, PitchBend, Aftertouch, Random/note, Constant), 15 destinations (cutoff, resonance, drive, pitch, OSC2 pitch, OSC1/2 PW, OSC1/2/sub/noise level, pan, amp, LFO1/2 rate). Pull-based, control-rate, sums on top of dedicated routings. |
 | Glide / portamento | done | Per-voice fractional-note glide that chases the target at control rate; unison stacks slide together; seeded from the last played note. |
 | Unison | done | 1–8 voices per note, symmetric cents detune, equal-power stereo spread per pair. |
 | Mono / legato / poly | done | Note priority last; legato re-uses the voice without re-triggering envelopes. |
@@ -74,9 +74,9 @@ without blocking the audio path.
   Consolas mono everywhere, sharp angular sections with cyan accent stripes,
   terminal-style header (`root@bacillum:~$ ...` with blinking caret),
   concentric cyber knobs with bipolar fill-from-centre.
-- Preset browser bar, ARP panel, oscilloscope + spectrum analyser.
-- Resizable (980×760 → 2200×1500).
-- ~80 parameters in APVTS, host-automatable, state save/load via XML.
+- Preset browser bar, ARP panel, 8-slot mod-matrix grid, oscilloscope + spectrum analyser.
+- Resizable (1040×900 → 2400×1700).
+- ~103 parameters in APVTS, host-automatable, state save/load via XML.
 
 ---
 

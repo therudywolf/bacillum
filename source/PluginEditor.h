@@ -114,6 +114,13 @@ namespace bacillum
         LabeledCombo  lfo1Shape, lfo1Sync;
         LabeledRotary lfo1Rate, lfo1ToCutoff, lfo1ToPitch, lfo1ToAmp, lfo1FadeIn;
 
+        // === LFO2 / LFO3 / ENV3 ===========================================
+        LabeledCombo  lfo2Shape, lfo2Sync;
+        LabeledRotary lfo2Rate, lfo2FadeIn;
+        LabeledCombo  lfo3Shape, lfo3Sync;
+        LabeledRotary lfo3Rate;
+        LabeledRotary env3A, env3D, env3S, env3R;
+
         // === Chorus ========================================================
         LabeledCombo  chorusMode;
         LabeledRotary chorusMix, chorusRate, chorusDepth, chorusFeedback;
@@ -133,12 +140,17 @@ namespace bacillum
         LabeledRotary masterGain, masterPan, glide;
         LabeledCombo  polyMode;
 
+        // === Mod matrix (8 slots, built in ctor body) ======================
+        std::array<std::unique_ptr<LabeledCombo>,  params::kNumModSlots> modSrcUI;
+        std::array<std::unique_ptr<LabeledCombo>,  params::kNumModSlots> modDstUI;
+        std::array<std::unique_ptr<LabeledRotary>, params::kNumModSlots> modDepthUI;
+
         // === On-screen + visualisers =======================================
         juce::MidiKeyboardComponent keyboard;
         gui::Oscilloscope scope;
         gui::Spectroscope analyzer;
 
-        std::array<Section, 16> sections {};
+        std::array<Section, 20> sections {};
         bool caretOn { true };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)

@@ -60,6 +60,18 @@ namespace bacillum
           lfo1ToAmp    (p.getAPVTS(), params::ids::lfo1ToAmp,    "> AMP"),
           lfo1FadeIn   (p.getAPVTS(), params::ids::lfo1FadeIn,   "FADE"),
 
+          lfo2Shape  (p.getAPVTS(), params::ids::lfo2Shape,  "SHAPE"),
+          lfo2Sync   (p.getAPVTS(), params::ids::lfo2Sync,   "SYNC"),
+          lfo2Rate   (p.getAPVTS(), params::ids::lfo2Rate,   "RATE"),
+          lfo2FadeIn (p.getAPVTS(), params::ids::lfo2FadeIn, "FADE"),
+          lfo3Shape  (p.getAPVTS(), params::ids::lfo3Shape,  "SHAPE"),
+          lfo3Sync   (p.getAPVTS(), params::ids::lfo3Sync,   "SYNC"),
+          lfo3Rate   (p.getAPVTS(), params::ids::lfo3Rate,   "RATE"),
+          env3A (p.getAPVTS(), params::ids::env3Attack,  "A"),
+          env3D (p.getAPVTS(), params::ids::env3Decay,   "D"),
+          env3S (p.getAPVTS(), params::ids::env3Sustain, "S"),
+          env3R (p.getAPVTS(), params::ids::env3Release, "R"),
+
           chorusMode     (p.getAPVTS(), params::ids::chorusMode,     "TYPE"),
           chorusMix      (p.getAPVTS(), params::ids::chorusMix,      "MIX"),
           chorusRate     (p.getAPVTS(), params::ids::chorusRate,     "RATE"),
@@ -102,9 +114,9 @@ namespace bacillum
         scope.setSampleRate    (p.getCurrentSampleRate());
         analyzer.setSampleRate (p.getCurrentSampleRate());
 
-        setSize (1200, 1010);
+        setSize (1280, 1180);
         setResizable (true, true);
-        setResizeLimits (980, 760, 2200, 1500);
+        setResizeLimits (1040, 900, 2400, 1700);
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
                          &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
@@ -115,6 +127,8 @@ namespace bacillum
                          &fEnvA, &fEnvD, &fEnvS, &fEnvR,
                          &ampA,  &ampD,  &ampS,  &ampR,
                          &lfo1Rate, &lfo1ToCutoff, &lfo1ToPitch, &lfo1ToAmp, &lfo1FadeIn,
+                         &lfo2Rate, &lfo2FadeIn, &lfo3Rate,
+                         &env3A, &env3D, &env3S, &env3R,
                          &chorusMix, &chorusRate, &chorusDepth, &chorusFeedback,
                          &delayMix, &delayTimeL, &delayTimeR, &delayFB, &delayPingPong,
                          &reverbMix, &reverbSize, &reverbDamping, &reverbWidth,
@@ -126,9 +140,24 @@ namespace bacillum
                          &subWaveform, &subOctave,
                          &noiseType, &filterMode,
                          &lfo1Shape, &lfo1Sync,
+                         &lfo2Shape, &lfo2Sync, &lfo3Shape, &lfo3Sync,
                          &chorusMode, &delaySync,
                          &arpMode, &arpRate, &polyMode })
             addAndDisplay (*c);
+
+        // Mod-matrix slot controls (8 × src / dst / depth).
+        for (int i = 0; i < params::kNumModSlots; ++i)
+        {
+            modSrcUI[(size_t) i]   = std::make_unique<LabeledCombo> (p.getAPVTS(),
+                                        params::ids::modSrc[(size_t) i],   juce::String (i + 1) + " SRC");
+            modDstUI[(size_t) i]   = std::make_unique<LabeledCombo> (p.getAPVTS(),
+                                        params::ids::modDst[(size_t) i],   "DST");
+            modDepthUI[(size_t) i] = std::make_unique<LabeledRotary> (p.getAPVTS(),
+                                        params::ids::modDepth[(size_t) i], "AMT");
+            addAndDisplay (*modSrcUI[(size_t) i]);
+            addAndDisplay (*modDstUI[(size_t) i]);
+            addAndDisplay (*modDepthUI[(size_t) i]);
+        }
 
         // Arp on/off toggle.
         arpOnButton.setColour (juce::ToggleButton::textColourId,  gui::Palette::bone());
@@ -346,12 +375,20 @@ namespace bacillum
 
         auto body = bounds.reduced (8);
 
-        // Visualiser strip.
-        const int vizH = 170;
-        auto vizStrip = body.removeFromBottom (vizH);
-        body.removeFromBottom (6);
+        const int gap = 6;
 
-        const int cols = 4, rows = 4, gap = 6;
+        // Visualiser strip (bottom).
+        const int vizH = 150;
+        auto vizStrip = body.removeFromBottom (vizH);
+        body.removeFromBottom (gap);
+
+        // Mod-matrix strip (above visualisers, full width).
+        const int matrixH = 176;
+        auto matrixArea = body.removeFromBottom (matrixH);
+        body.removeFromBottom (gap);
+
+        // Remaining body = 4 cols × 5 rows panel grid.
+        const int cols = 4, rows = 5;
         const int colW = (body.getWidth()  - (cols - 1) * gap) / cols;
         const int rowH = (body.getHeight() - (rows - 1) * gap) / rows;
 
@@ -363,29 +400,35 @@ namespace bacillum
                 colW, rowH);
         };
 
-        // Row 0 ─ source
+        // R0 ─ sources
         sections[0]  = { "// OSC.1",          sectionRect (0, 0) };
         sections[1]  = { "// OSC.2",          sectionRect (1, 0) };
         sections[2]  = { "// SUB + HYPER",    sectionRect (2, 0) };
         sections[3]  = { "// NOISE + UNISON", sectionRect (3, 0) };
-        // Row 1 ─ filter chain
+        // R1 ─ filter chain
         sections[4]  = { "// FILTER",         sectionRect (0, 1) };
         sections[5]  = { "// FILT.ENV",       sectionRect (1, 1) };
         sections[6]  = { "// FILT.MOD",       sectionRect (2, 1) };
-        sections[7]  = { "// LFO.1",          sectionRect (3, 1) };
-        // Row 2 ─ amp + FX
-        sections[8]  = { "// AMP.ENV",        sectionRect (0, 2) };
-        sections[9]  = { "// CHORUS",         sectionRect (1, 2) };
-        sections[10] = { "// DELAY",          sectionRect (2, 2) };
-        sections[11] = { "// REVERB",         sectionRect (3, 2) };
-        // Row 3 ─ master + perf + arp (arp spans two cells)
-        sections[12] = { "// MASTER",         sectionRect (0, 3) };
-        sections[13] = { "// PERF",           sectionRect (1, 3) };
+        sections[7]  = { "// AMP.ENV",        sectionRect (3, 1) };
+        // R2 ─ modulators
+        sections[8]  = { "// LFO.1",          sectionRect (0, 2) };
+        sections[9]  = { "// LFO.2",          sectionRect (1, 2) };
+        sections[10] = { "// LFO.3 (GLOBAL)", sectionRect (2, 2) };
+        sections[11] = { "// ENV.3",          sectionRect (3, 2) };
+        // R3 ─ FX + master
+        sections[12] = { "// CHORUS",         sectionRect (0, 3) };
+        sections[13] = { "// DELAY",          sectionRect (1, 3) };
+        sections[14] = { "// REVERB",         sectionRect (2, 3) };
+        sections[15] = { "// MASTER",         sectionRect (3, 3) };
+        // R4 ─ perf + arp
+        sections[16] = { "// PERF",           sectionRect (0, 4) };
         {
-            auto arpRect = sectionRect (2, 3);
-            arpRect.setWidth (2 * colW + gap);
-            sections[14] = { "// ARP",        arpRect };
+            auto arpRect = sectionRect (1, 4);
+            arpRect.setWidth (3 * colW + 2 * gap);   // span cols 1-3
+            sections[17] = { "// ARP",        arpRect };
         }
+        // Full-width mod matrix
+        sections[18] = { "// MOD MATRIX  (source -> destination x depth)", matrixArea };
 
         // Visualisers.
         const int half = (vizStrip.getWidth() - gap) / 2;
@@ -463,9 +506,18 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), filterEnvAmt.slider,   filterEnvAmt.label);
             layoutKnob (c.removeFromLeft (kw), filterVelAmt.slider,   filterVelAmt.label);
         }
-        // LFO1 (shape + sync combos, then 5 knobs)
+        // AMP ENV
         {
             auto c = inset (sections[7].bounds);
+            const int kw = c.getWidth() / 4;
+            layoutKnob (c.removeFromLeft (kw), ampA.slider, ampA.label);
+            layoutKnob (c.removeFromLeft (kw), ampD.slider, ampD.label);
+            layoutKnob (c.removeFromLeft (kw), ampS.slider, ampS.label);
+            layoutKnob (c.removeFromLeft (kw), ampR.slider, ampR.label);
+        }
+        // LFO1
+        {
+            auto c = inset (sections[8].bounds);
             auto top = c.removeFromTop (38);
             const int comboW = top.getWidth() / 2;
             layoutCombo (top.removeFromLeft (comboW), lfo1Shape.combo, lfo1Shape.label);
@@ -477,18 +529,38 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), lfo1ToAmp.slider,    lfo1ToAmp.label);
             layoutKnob (c.removeFromLeft (kw), lfo1FadeIn.slider,   lfo1FadeIn.label);
         }
-        // AMP ENV
+        // LFO2 (matrix-routed)
         {
-            auto c = inset (sections[8].bounds);
+            auto c = inset (sections[9].bounds);
+            auto top = c.removeFromTop (38);
+            const int comboW = top.getWidth() / 2;
+            layoutCombo (top.removeFromLeft (comboW), lfo2Shape.combo, lfo2Shape.label);
+            layoutCombo (top,                         lfo2Sync.combo,  lfo2Sync.label);
+            const int kw = c.getWidth() / 2;
+            layoutKnob (c.removeFromLeft (kw), lfo2Rate.slider,   lfo2Rate.label);
+            layoutKnob (c.removeFromLeft (kw), lfo2FadeIn.slider, lfo2FadeIn.label);
+        }
+        // LFO3 (global)
+        {
+            auto c = inset (sections[10].bounds);
+            auto top = c.removeFromTop (38);
+            const int comboW = top.getWidth() / 2;
+            layoutCombo (top.removeFromLeft (comboW), lfo3Shape.combo, lfo3Shape.label);
+            layoutCombo (top,                         lfo3Sync.combo,  lfo3Sync.label);
+            layoutKnob (c.removeFromLeft (c.getWidth() / 2), lfo3Rate.slider, lfo3Rate.label);
+        }
+        // ENV3
+        {
+            auto c = inset (sections[11].bounds);
             const int kw = c.getWidth() / 4;
-            layoutKnob (c.removeFromLeft (kw), ampA.slider, ampA.label);
-            layoutKnob (c.removeFromLeft (kw), ampD.slider, ampD.label);
-            layoutKnob (c.removeFromLeft (kw), ampS.slider, ampS.label);
-            layoutKnob (c.removeFromLeft (kw), ampR.slider, ampR.label);
+            layoutKnob (c.removeFromLeft (kw), env3A.slider, env3A.label);
+            layoutKnob (c.removeFromLeft (kw), env3D.slider, env3D.label);
+            layoutKnob (c.removeFromLeft (kw), env3S.slider, env3S.label);
+            layoutKnob (c.removeFromLeft (kw), env3R.slider, env3R.label);
         }
         // CHORUS
         {
-            auto c = inset (sections[9].bounds);
+            auto c = inset (sections[12].bounds);
             layoutCombo (c.removeFromTop (38), chorusMode.combo, chorusMode.label);
             const int kw = c.getWidth() / 4;
             layoutKnob (c.removeFromLeft (kw), chorusMix.slider,      chorusMix.label);
@@ -496,9 +568,9 @@ namespace bacillum
             layoutKnob (c.removeFromLeft (kw), chorusDepth.slider,    chorusDepth.label);
             layoutKnob (c.removeFromLeft (kw), chorusFeedback.slider, chorusFeedback.label);
         }
-        // DELAY (sync combo + 5 knobs)
+        // DELAY
         {
-            auto c = inset (sections[10].bounds);
+            auto c = inset (sections[13].bounds);
             layoutCombo (c.removeFromTop (38), delaySync.combo, delaySync.label);
             const int kw = c.getWidth() / 5;
             layoutKnob (c.removeFromLeft (kw), delayMix.slider,      delayMix.label);
@@ -509,7 +581,7 @@ namespace bacillum
         }
         // REVERB
         {
-            auto c = inset (sections[11].bounds);
+            auto c = inset (sections[14].bounds);
             const int kw = c.getWidth() / 4;
             layoutKnob (c.removeFromLeft (kw), reverbMix.slider,     reverbMix.label);
             layoutKnob (c.removeFromLeft (kw), reverbSize.slider,    reverbSize.label);
@@ -518,20 +590,20 @@ namespace bacillum
         }
         // MASTER
         {
-            auto c = inset (sections[12].bounds);
+            auto c = inset (sections[15].bounds);
             const int kw = c.getWidth() / 2;
             layoutKnob (c.removeFromLeft (kw), masterGain.slider, masterGain.label);
             layoutKnob (c.removeFromLeft (kw), masterPan.slider,  masterPan.label);
         }
         // PERF (poly mode + glide)
         {
-            auto c = inset (sections[13].bounds);
+            auto c = inset (sections[16].bounds);
             layoutCombo (c.removeFromTop (38), polyMode.combo, polyMode.label);
             layoutKnob (c.removeFromLeft (c.getWidth() / 2), glide.slider, glide.label);
         }
-        // ARP (toggle + mode + rate combos, octaves + gate knobs)
+        // ARP
         {
-            auto c = inset (sections[14].bounds);
+            auto c = inset (sections[17].bounds);
             auto top = c.removeFromTop (38);
             arpOnButton.setBounds (top.removeFromLeft (110).withSizeKeepingCentre (104, 24));
             const int cw = top.getWidth() / 2;
@@ -540,6 +612,18 @@ namespace bacillum
             const int kw = c.getWidth() / 4;
             layoutKnob (c.removeFromLeft (kw), arpOctaves.slider, arpOctaves.label);
             layoutKnob (c.removeFromLeft (kw), arpGate.slider,    arpGate.label);
+        }
+        // MOD MATRIX — 8 vertical slots: src combo / dst combo / depth knob.
+        {
+            auto c = inset (sections[18].bounds);
+            const int slotW = c.getWidth() / params::kNumModSlots;
+            for (int i = 0; i < params::kNumModSlots; ++i)
+            {
+                auto slot = c.removeFromLeft (slotW).reduced (3, 0);
+                layoutCombo (slot.removeFromTop (34), modSrcUI[(size_t) i]->combo, modSrcUI[(size_t) i]->label);
+                layoutCombo (slot.removeFromTop (34), modDstUI[(size_t) i]->combo, modDstUI[(size_t) i]->label);
+                layoutKnob  (slot,                    modDepthUI[(size_t) i]->slider, modDepthUI[(size_t) i]->label);
+            }
         }
     }
 }

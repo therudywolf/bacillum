@@ -49,19 +49,24 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 
 ---
 
-## v0.3.x — Modulation depth (next, ~1–2 weeks)
+### Done (v0.4 — modulation system)
 
-The goal: a fully-modulated, deeply patchable synth.
+- [x] **8-slot Mod Matrix** — `source → destination × depth`, pull-based,
+      control-rate. 14 sources (ENV1-3, LFO1-3, Vel, Note, ModWheel, PB,
+      Aftertouch, Random/note, Constant), 15 destinations. Sums on top of the
+      dedicated routings.
+- [x] **LFO 2** — second per-voice key-triggered LFO, matrix-routed.
+- [x] **LFO 3** — global free-running LFO (block-rate), matrix source.
+- [x] **ENV 3** — free ADSR, matrix-only.
 
-- [ ] **LFO 2** — second per-voice key-triggered LFO with independent routings
-      (target list: cutoff, pitch, PW, pan, FX sends).
-- [ ] **LFO 3** — global, free-running, tempo-syncable LFO; routes to master pan,
-      cutoff (all voices), delay/reverb FX.
-- [ ] **8-slot Mod Matrix** (spec §2.2). Sources: ENV1-3, LFO1-3, Vel, Note,
-      Aftertouch (channel + poly), ModWheel, PB, Breath, Expression, Sustain,
-      RandomPerNote, RandomPerSample, Constant1. Destinations: every continuous
-      param. Curves: linear / exp / log / quad / S.
-- [ ] **3rd envelope** (free / DAHDSR) for the mod matrix.
+## v0.4.x — Modulation polish (next)
+
+- [ ] **Curves per mod slot** (linear / exp / log / quad / S) + side-chain
+      (via-source) amount.
+- [ ] **More sources**: poly aftertouch, Breath (CC2), Expression (CC11),
+      Sustain, RandomPerSample.
+- [ ] **DAHDSR** envelopes (add Delay + Hold stages) + loop mode + exp curves.
+- [ ] **LFO3 per-sample** smoothing (currently block-rate) + LFO wavetable shapes.
 - [ ] **Velocity curve** options (linear / fixed / exponential / S-curve).
 
 ---
