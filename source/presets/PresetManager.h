@@ -80,6 +80,10 @@ namespace bacillum::presets
         static float LS (params::LfoShape s)    { return (float) (int) s; }
         static float SD (params::SyncDivision d){ return (float) (int) d; }
         static float AM (params::ArpMode m)     { return (float) (int) m; }
+        static float FR (params::FilterRouting r){ return (float) (int) r; }
+        static float ST (params::SaturatorType t){ return (float) (int) t; }
+        static float MS (params::ModSource s)    { return (float) (int) s; }
+        static float MD (params::ModDest d)      { return (float) (int) d; }
 
         void build()
         {
@@ -273,6 +277,129 @@ namespace bacillum::presets
                 { id::filterEnvAmt, 0.9f }, { id::filterAttack, 1.5f }, { id::filterSustain, 1.0f },
                 { id::ampAttack, 1.0f }, { id::ampSustain, 1.0f }, { id::ampRelease, 1.5f },
                 { id::reverbMix, 0.5f }, { id::reverbSize, 0.9f } } });
+
+            using FRo = params::FilterRouting;
+            using STy = params::SaturatorType;
+            using MSr = params::ModSource;
+            using MDt = params::ModDest;
+
+            // -- Patches showcasing the v0.4–v0.6 engine ------------------
+            presets.push_back ({ "WT Sweep Lead", "Lead", {
+                { id::osc1Waveform, W(W_::Wavetable) }, { id::wavetablePos, 0.0f }, { id::osc1Level, 0.9f },
+                { id::osc2Level, 0.0f },
+                { id::filterMode, FM(FMo::LP24) }, { id::filterCutoff, 9000.0f },
+                { id::lfo2Shape, LS(LSh::Triangle) }, { id::lfo2Rate, 0.25f },
+                { id::modSrc[0], MS(MSr::Lfo2) }, { id::modDst[0], MD(MDt::Osc1Level) }, { id::modDepth[0], 0.0f },
+                // LFO2 scans the wavetable position via a matrix slot.
+                { id::modSrc[1], MS(MSr::Lfo2) }, { id::modDst[1], MD(MDt::Osc1PW) }, { id::modDepth[1], 0.0f },
+                { id::ampAttack, 0.02f }, { id::ampSustain, 0.85f }, { id::ampRelease, 0.4f },
+                { id::reverbMix, 0.3f }, { id::delayMix, 0.2f }, { id::delaySync, SD(SDv::D1_8) } } });
+
+            presets.push_back ({ "Sync Stab", "Lead", {
+                { id::osc1Waveform, W(W_::Saw) }, { id::osc1Level, 0.95f },
+                { id::osc2Waveform, W(W_::Saw) }, { id::osc2Pitch, 0.0f }, { id::osc2Level, 0.0f },
+                { id::oscSync, 1.0f },
+                { id::lfo1Shape, LS(LSh::SawDown) }, { id::lfo1Rate, 6.0f }, { id::lfo1ToPitch, 7.0f },
+                { id::modSrc[0], MS(MSr::Env1) }, { id::modDst[0], MD(MDt::Osc2Pitch) }, { id::modDepth[0], 0.5f },
+                { id::filterMode, FM(FMo::LP24) }, { id::filterCutoff, 6000.0f },
+                { id::ampAttack, 0.001f }, { id::ampDecay, 0.25f }, { id::ampSustain, 0.0f }, { id::ampRelease, 0.2f },
+                { id::filterDecay, 0.25f }, { id::filterEnvAmt, 0.4f },
+                { id::reverbMix, 0.25f } } });
+
+            presets.push_back ({ "FM Bell", "Pluck", {
+                { id::osc1Waveform, W(W_::Sine) }, { id::osc1Level, 0.9f },
+                { id::osc2Waveform, W(W_::Sine) }, { id::osc2Pitch, 14.0f }, { id::osc2Level, 0.0f },
+                { id::oscFM, 0.6f },
+                { id::modSrc[0], MS(MSr::Env1) }, { id::modDst[0], MD(MDt::Osc2Pitch) }, { id::modDepth[0], 0.3f },
+                { id::filterMode, FM(FMo::LP12) }, { id::filterCutoff, 10000.0f },
+                { id::ampAttack, 0.001f }, { id::ampDecay, 0.5f }, { id::ampSustain, 0.0f }, { id::ampRelease, 0.5f },
+                { id::filterDecay, 0.4f }, { id::filterEnvAmt, 0.3f },
+                { id::reverbMix, 0.4f }, { id::reverbSize, 0.75f } } });
+
+            presets.push_back ({ "Ring Metallic", "FX", {
+                { id::osc1Waveform, W(W_::Square) }, { id::osc1Level, 0.7f },
+                { id::osc2Waveform, W(W_::Saw) }, { id::osc2Pitch, 7.0f }, { id::osc2Detune, 11.0f }, { id::osc2Level, 0.0f },
+                { id::oscRing, 0.8f },
+                { id::filterMode, FM(FMo::BP12) }, { id::filterCutoff, 2000.0f }, { id::filterRes, 0.4f },
+                { id::ampAttack, 0.002f }, { id::ampDecay, 0.6f }, { id::ampSustain, 0.2f }, { id::ampRelease, 0.5f },
+                { id::reverbMix, 0.45f }, { id::reverbSize, 0.85f } } });
+
+            presets.push_back ({ "Dual Split Bass", "Bass", {
+                { id::osc1Waveform, W(W_::Saw) }, { id::osc1Level, 0.9f },
+                { id::osc2Waveform, W(W_::Square) }, { id::osc2Pitch, 0.0f }, { id::osc2Level, 0.8f },
+                { id::subLevel, 0.5f }, { id::noiseLevel, 0.15f },
+                { id::filterRouting, FR(FRo::Split) },
+                { id::filterMode, FM(FMo::Ladder24) }, { id::filterCutoff, 500.0f }, { id::filterRes, 0.3f },
+                { id::filter2Mode, FM(FMo::HP12) }, { id::filter2Cutoff, 300.0f },
+                { id::satType, ST(STy::Tanh) }, { id::satAmount, 0.4f },
+                { id::ampAttack, 0.002f }, { id::ampDecay, 0.3f }, { id::ampSustain, 0.7f }, { id::ampRelease, 0.15f },
+                { id::polyMode, PM(PMo::Mono) }, { id::glideTime, 0.03f } } });
+
+            presets.push_back ({ "Serial Growl", "Bass", {
+                { id::osc1Waveform, W(W_::Saw) }, { id::osc1Level, 0.95f },
+                { id::subLevel, 0.4f },
+                { id::filterRouting, FR(FRo::Serial) },
+                { id::filterMode, FM(FMo::Ladder24) }, { id::filterCutoff, 700.0f }, { id::filterRes, 0.5f },
+                { id::filter2Mode, FM(FMo::LP12) }, { id::filter2Cutoff, 1500.0f },
+                { id::satType, ST(STy::Foldback) }, { id::satAmount, 0.35f },
+                { id::lfo1Shape, LS(LSh::Sine) }, { id::lfo1Sync, SD(SDv::D1_8) }, { id::lfo1ToCutoff, 2.5f },
+                { id::ampSustain, 0.9f }, { id::polyMode, PM(PMo::Mono) }, { id::glideTime, 0.04f } } });
+
+            presets.push_back ({ "Crush Lead", "Lead", {
+                { id::osc1Waveform, W(W_::Saw) }, { id::osc1Level, 0.9f },
+                { id::osc2Waveform, W(W_::Square) }, { id::osc2Detune, 12.0f }, { id::osc2Level, 0.6f },
+                { id::filterRouting, FR(FRo::Serial) },
+                { id::filterMode, FM(FMo::LP24) }, { id::filterCutoff, 4000.0f },
+                { id::satType, ST(STy::BitCrush) }, { id::satAmount, 0.4f },
+                { id::filter2Mode, FM(FMo::LP12) }, { id::filter2Cutoff, 9000.0f },
+                { id::ampAttack, 0.005f }, { id::ampSustain, 0.85f }, { id::ampRelease, 0.3f },
+                { id::delayMix, 0.25f }, { id::delaySync, SD(SDv::D1_8) }, { id::reverbMix, 0.3f } } });
+
+            presets.push_back ({ "Evolving Pad", "Pad", {
+                { id::osc1Waveform, W(W_::Wavetable) }, { id::wavetablePos, 0.2f }, { id::osc1Level, 0.85f },
+                { id::osc2Waveform, W(W_::Saw) }, { id::osc2Detune, 9.0f }, { id::osc2Level, 0.5f },
+                { id::filterMode, FM(FMo::LP24) }, { id::filterCutoff, 4000.0f },
+                { id::lfo3Shape, LS(LSh::Sine) }, { id::lfo3Rate, 0.15f },
+                { id::modSrc[0], MS(MSr::Lfo3) }, { id::modDst[0], MD(MDt::Cutoff) },  { id::modDepth[0], 0.4f },
+                { id::modSrc[1], MS(MSr::Lfo3) }, { id::modDst[1], MD(MDt::Pan) },     { id::modDepth[1], 0.5f },
+                { id::env3Attack, 2.0f }, { id::env3Release, 2.0f },
+                { id::modSrc[2], MS(MSr::Env3) }, { id::modDst[2], MD(MDt::Osc2Level) }, { id::modDepth[2], 0.4f },
+                { id::ampAttack, 1.2f }, { id::ampSustain, 0.8f }, { id::ampRelease, 1.8f },
+                { id::chorusMix, 0.35f }, { id::reverbMix, 0.55f }, { id::reverbSize, 0.9f } } });
+
+            presets.push_back ({ "Aftertouch Vox", "Pad", {
+                { id::osc1Waveform, W(W_::Wavetable) }, { id::wavetablePos, 0.75f }, { id::osc1Level, 0.85f },
+                { id::filterMode, FM(FMo::LP12) }, { id::filterCutoff, 3000.0f },
+                { id::modSrc[0], MS(MSr::Aftertouch) }, { id::modDst[0], MD(MDt::Cutoff) }, { id::modDepth[0], 0.5f },
+                { id::modSrc[1], MS(MSr::Aftertouch) }, { id::modDst[1], MD(MDt::Lfo1Rate) }, { id::modDepth[1], 0.3f },
+                { id::lfo1Shape, LS(LSh::Sine) }, { id::lfo1Rate, 4.0f }, { id::lfo1ToPitch, 0.2f },
+                { id::ampAttack, 0.6f }, { id::ampSustain, 0.85f }, { id::ampRelease, 1.0f },
+                { id::reverbMix, 0.5f } } });
+
+            presets.push_back ({ "Velo Pluck", "Pluck", {
+                { id::osc1Waveform, W(W_::Saw) }, { id::osc1Level, 0.9f },
+                { id::filterMode, FM(FMo::Ladder24) }, { id::filterCutoff, 1200.0f }, { id::filterRes, 0.3f },
+                { id::modSrc[0], MS(MSr::Velocity) }, { id::modDst[0], MD(MDt::Cutoff) }, { id::modDepth[0], 0.6f },
+                { id::filterEnvAmt, 0.5f }, { id::filterDecay, 0.2f }, { id::filterSustain, 0.0f },
+                { id::ampAttack, 0.001f }, { id::ampDecay, 0.25f }, { id::ampSustain, 0.0f }, { id::ampRelease, 0.2f },
+                { id::reverbMix, 0.3f } } });
+
+            presets.push_back ({ "Random Pluck Seq", "Sequence", {
+                { id::osc1Waveform, W(W_::Square) }, { id::osc1Pulsewidth, 0.35f }, { id::osc1Level, 0.9f },
+                { id::filterMode, FM(FMo::Ladder24) }, { id::filterCutoff, 2000.0f }, { id::filterRes, 0.45f },
+                { id::modSrc[0], MS(MSr::Random) }, { id::modDst[0], MD(MDt::Cutoff) }, { id::modDepth[0], 0.5f },
+                { id::modSrc[1], MS(MSr::Random) }, { id::modDst[1], MD(MDt::Pan) },    { id::modDepth[1], 0.6f },
+                { id::ampAttack, 0.001f }, { id::ampDecay, 0.18f }, { id::ampSustain, 0.0f }, { id::ampRelease, 0.15f },
+                { id::arpOn, 1.0f }, { id::arpMode, AM(AMo::Up) }, { id::arpRate, SD(SDv::D1_16) }, { id::arpOctaves, 2.0f },
+                { id::delayMix, 0.3f }, { id::delaySync, SD(SDv::D1_16) } } });
+
+            presets.push_back ({ "Plate Keys", "Keys", {
+                { id::osc1Waveform, W(W_::Triangle) }, { id::osc1Level, 0.85f },
+                { id::osc2Waveform, W(W_::Sine) }, { id::osc2Pitch, 12.0f }, { id::osc2Level, 0.45f },
+                { id::filterMode, FM(FMo::LP12) }, { id::filterCutoff, 7000.0f },
+                { id::ampAttack, 0.004f }, { id::ampDecay, 0.7f }, { id::ampSustain, 0.35f }, { id::ampRelease, 0.6f },
+                { id::reverbMix, 0.5f }, { id::reverbSize, 0.85f }, { id::reverbDamping, 0.3f },
+                { id::eqHighGain, 3.0f }, { id::eqHighFreq, 6000.0f } } });
         }
 
         juce::AudioProcessor& processor;

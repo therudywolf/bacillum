@@ -51,7 +51,7 @@ Voice mix → **3-band EQ** → Chorus/Flanger/Phaser → Stereo Delay → Rever
 
 | | Notes |
 |---|---|
-| Factory bank | 24 code-defined patches across Init / Bass / Lead / Pad / Keys / Pluck / Brass / Strings / Arp / Sequence / FX. Sparse override model (each patch only stores what differs from Init), applied on top of a full reset-to-defaults. |
+| Factory bank | 34 code-defined patches across Init / Bass / Lead / Pad / Keys / Pluck / Brass / Strings / Arp / Sequence / FX, several showcasing wavetable scan, dual-filter split/serial, FM, hard sync, ring mod, the mod matrix and the Dattorro plate. Sparse override model (each patch only stores what differs from Init), applied on top of a full reset-to-defaults. |
 | Browser | Header bar with `< [Category / Name ▼] >` — prev/next + dropdown. Loading drives the APVTS so every knob animates to the new value. |
 | State | Full plugin state saved/restored as APVTS XML (`getStateInformation`). |
 
