@@ -155,6 +155,7 @@ namespace bacillum
         // === Mod matrix (8 slots, built in ctor body) ======================
         std::array<std::unique_ptr<LabeledCombo>,  params::kNumModSlots> modSrcUI;
         std::array<std::unique_ptr<LabeledCombo>,  params::kNumModSlots> modDstUI;
+        std::array<std::unique_ptr<LabeledCombo>,  params::kNumModSlots> modCurveUI;
         std::array<std::unique_ptr<LabeledRotary>, params::kNumModSlots> modDepthUI;
 
         // === On-screen + visualisers =======================================

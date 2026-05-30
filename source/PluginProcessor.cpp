@@ -70,6 +70,7 @@ namespace bacillum
             pModSrc[i]   = apvts.getRawParameterValue (params::ids::modSrc[(size_t) i]);
             pModDst[i]   = apvts.getRawParameterValue (params::ids::modDst[(size_t) i]);
             pModDepth[i] = apvts.getRawParameterValue (params::ids::modDepth[(size_t) i]);
+            pModCurve[i] = apvts.getRawParameterValue (params::ids::modCurve[(size_t) i]);
         }
 
         pFilterMode     = apvts.getRawParameterValue (params::ids::filterMode);
@@ -311,6 +312,9 @@ namespace bacillum
                 static_cast<params::ModDest>(juce::jlimit (0, (int) params::ModDest::NumDests - 1,
                                                            static_cast<int>(pModDst[i]->load())));
             out.modSlots[(size_t) i].depth = pModDepth[i]->load();
+            out.modSlots[(size_t) i].curve =
+                static_cast<params::ModCurve>(juce::jlimit (0, (int) params::ModCurve::NumCurves - 1,
+                                                            static_cast<int>(pModCurve[i]->load())));
         }
 
         // Mod sources from MIDI / GUI / global engine

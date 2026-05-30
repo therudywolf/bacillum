@@ -417,7 +417,7 @@ namespace bacillum::dsp
                         || slot.depth == 0.0f)
                         continue;
 
-                    const float v = sv[(int) slot.source] * slot.depth;
+                    const float v = params::applyModCurve (slot.curve, sv[(int) slot.source]) * slot.depth;
                     switch (slot.dest)
                     {
                         case params::ModDest::Cutoff:     dCut   += v; break;

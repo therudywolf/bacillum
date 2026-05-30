@@ -173,6 +173,18 @@ namespace bacillum::params
         }
     }
 
+    static juce::String modCurveName(int i)
+    {
+        switch (static_cast<ModCurve>(i))
+        {
+            case ModCurve::Linear:      return "Lin";
+            case ModCurve::Exponential: return "Exp";
+            case ModCurve::Quadratic:   return "Quad";
+            case ModCurve::SCurve:      return "S";
+            default:                    return {};
+        }
+    }
+
     static juce::String modDestName(int i)
     {
         switch (static_cast<ModDest>(i))
@@ -457,6 +469,7 @@ namespace bacillum::params
         // --- Mod matrix (8 slots) -----------------------------------------
         const auto modSources = makeChoices(static_cast<int>(ModSource::NumSources), modSourceName);
         const auto modDests   = makeChoices(static_cast<int>(ModDest::NumDests),     modDestName);
+        const auto modCurves  = makeChoices(static_cast<int>(ModCurve::NumCurves),   modCurveName);
         for (int i = 0; i < kNumModSlots; ++i)
         {
             layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -468,6 +481,9 @@ namespace bacillum::params
             layout.add(std::make_unique<juce::AudioParameterFloat>(
                 PID{ ids::modDepth[(size_t) i], kVersionHint },
                 "Mod " + juce::String(i + 1) + " Depth", bipolar, 0.0f));
+            layout.add(std::make_unique<juce::AudioParameterChoice>(
+                PID{ ids::modCurve[(size_t) i], kVersionHint },
+                "Mod " + juce::String(i + 1) + " Curve", modCurves, 0));
         }
 
         // --- Global --------------------------------------------------------

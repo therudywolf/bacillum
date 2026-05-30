@@ -19,6 +19,7 @@
 #include "dsp/effects/Saturator.h"
 #include "dsp/effects/Eq3.h"
 #include "dsp/lfo/Lfo.h"
+#include "params/Params.h"
 
 using namespace bacillum;
 using Catch::Approx;
@@ -206,6 +207,23 @@ TEST_CASE ("HyperSaw is bounded", "[osc]")
         REQUIRE (std::isfinite (y));
         REQUIRE (std::abs (y) < 2.0f);
     }
+}
+
+TEST_CASE ("Mod-matrix curves shape and stay bounded", "[mod]")
+{
+    using params::ModCurve;
+    using params::applyModCurve;
+
+    REQUIRE (applyModCurve (ModCurve::Linear,    0.5f)  == Approx (0.5f));
+    REQUIRE (applyModCurve (ModCurve::Quadratic, 0.5f)  == Approx (0.25f));
+    REQUIRE (applyModCurve (ModCurve::Quadratic, -0.5f) == Approx (-0.25f));   // sign preserved
+    REQUIRE (applyModCurve (ModCurve::Exponential, 0.0f) == Approx (0.0f).margin (1.0e-6f));
+    REQUIRE (applyModCurve (ModCurve::Exponential, 1.0f) == Approx (1.0f));
+    REQUIRE (applyModCurve (ModCurve::SCurve, 0.5f) == Approx (0.5f));         // smoothstep(0.5)=0.5
+
+    for (float x = -1.0f; x <= 1.0f; x += 0.1f)
+        for (auto c : { ModCurve::Linear, ModCurve::Exponential, ModCurve::Quadratic, ModCurve::SCurve })
+            REQUIRE (std::abs (applyModCurve (c, x)) <= 1.0001f);
 }
 
 TEST_CASE ("LFO completes one cycle at its set rate", "[lfo]")

@@ -23,6 +23,7 @@ namespace bacillum::dsp
         params::ModSource source { params::ModSource::None };
         params::ModDest   dest   { params::ModDest::None };
         float             depth  { 0.0f };   // -1..+1
+        params::ModCurve  curve  { params::ModCurve::Linear };
     };
 
     // Per-block snapshot of audio-relevant parameters.

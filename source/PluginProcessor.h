@@ -132,6 +132,7 @@ namespace bacillum
         std::atomic<float>* pModSrc[params::kNumModSlots]   { nullptr };
         std::atomic<float>* pModDst[params::kNumModSlots]   { nullptr };
         std::atomic<float>* pModDepth[params::kNumModSlots] { nullptr };
+        std::atomic<float>* pModCurve[params::kNumModSlots] { nullptr };
 
         std::atomic<float>* pFilterMode     { nullptr };
         std::atomic<float>* pFilterCutoff   { nullptr };

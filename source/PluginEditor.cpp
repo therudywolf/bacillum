@@ -179,10 +179,13 @@ namespace bacillum
                                         params::ids::modSrc[(size_t) i],   juce::String (i + 1) + " SRC");
             modDstUI[(size_t) i]   = std::make_unique<LabeledCombo> (p.getAPVTS(),
                                         params::ids::modDst[(size_t) i],   "DST");
+            modCurveUI[(size_t) i] = std::make_unique<LabeledCombo> (p.getAPVTS(),
+                                        params::ids::modCurve[(size_t) i], "CRV");
             modDepthUI[(size_t) i] = std::make_unique<LabeledRotary> (p.getAPVTS(),
                                         params::ids::modDepth[(size_t) i], "AMT");
             addAndDisplay (*modSrcUI[(size_t) i]);
             addAndDisplay (*modDstUI[(size_t) i]);
+            addAndDisplay (*modCurveUI[(size_t) i]);
             addAndDisplay (*modDepthUI[(size_t) i]);
         }
 
@@ -718,8 +721,9 @@ namespace bacillum
             for (int i = 0; i < params::kNumModSlots; ++i)
             {
                 auto slot = c.removeFromLeft (slotW).reduced (3, 0);
-                layoutCombo (slot.removeFromTop (34), modSrcUI[(size_t) i]->combo, modSrcUI[(size_t) i]->label);
-                layoutCombo (slot.removeFromTop (34), modDstUI[(size_t) i]->combo, modDstUI[(size_t) i]->label);
+                layoutCombo (slot.removeFromTop (32), modSrcUI[(size_t) i]->combo,   modSrcUI[(size_t) i]->label);
+                layoutCombo (slot.removeFromTop (32), modDstUI[(size_t) i]->combo,   modDstUI[(size_t) i]->label);
+                layoutCombo (slot.removeFromTop (32), modCurveUI[(size_t) i]->combo, modCurveUI[(size_t) i]->label);
                 layoutKnob  (slot,                    modDepthUI[(size_t) i]->slider, modDepthUI[(size_t) i]->label);
             }
         }

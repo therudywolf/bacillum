@@ -61,8 +61,8 @@ Logic / FL / Ableton / Reaper / Cubase, no realtime allocations under Instrument
 
 ## v0.4.x — Modulation polish (next)
 
-- [ ] **Curves per mod slot** (linear / exp / log / quad / S) + side-chain
-      (via-source) amount.
+- [x] **Curves per mod slot** (linear / exp / quad / S) — shipped in v0.6.
+      (Side-chain / via-source amount still TODO.)
 - [ ] **More sources**: poly aftertouch, Breath (CC2), Expression (CC11),
       Sustain, RandomPerSample.
 - [ ] **DAHDSR** envelopes (add Delay + Hold stages) + loop mode + exp curves.

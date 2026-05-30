@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <array>
+#include <cmath>
 
 namespace bacillum::params
 {
@@ -92,6 +93,8 @@ namespace bacillum::params
             "mod1_dst","mod2_dst","mod3_dst","mod4_dst","mod5_dst","mod6_dst","mod7_dst","mod8_dst" };
         inline constexpr std::array<const char*, kNumModSlots> modDepth {
             "mod1_dep","mod2_dep","mod3_dep","mod4_dep","mod5_dep","mod6_dep","mod7_dep","mod8_dep" };
+        inline constexpr std::array<const char*, kNumModSlots> modCurve {
+            "mod1_crv","mod2_crv","mod3_crv","mod4_crv","mod5_crv","mod6_crv","mod7_crv","mod8_crv" };
 
         // Filter 1
         inline constexpr auto filterMode      = "filter_mode";
@@ -277,6 +280,30 @@ namespace bacillum::params
         Constant,                 // always 1.0 (offset / bias)
         NumSources
     };
+
+    // Per-slot response curve applied to the source value before depth.
+    enum class ModCurve : int
+    {
+        Linear = 0, Exponential, Quadratic, SCurve,
+        NumCurves
+    };
+
+    // Shape a source value x (unipolar 0..1 or bipolar -1..1) by a curve,
+    // preserving sign and keeping the [-1,1] range. Header-inline so the DSP
+    // and the tests share one definition.
+    [[nodiscard]] inline float applyModCurve (ModCurve c, float x) noexcept
+    {
+        const float s = (x < 0.0f) ? -1.0f : 1.0f;
+        const float a = x < 0.0f ? -x : x;          // |x|
+        switch (c)
+        {
+            case ModCurve::Exponential: return s * (std::pow (2.0f, a) - 1.0f);  // 0→0, 1→1, convex
+            case ModCurve::Quadratic:   return s * a * a;
+            case ModCurve::SCurve:      return s * (a * a * (3.0f - 2.0f * a));   // smoothstep
+            case ModCurve::Linear:
+            default:                    return x;
+        }
+    }
 
     // Modulation-matrix destinations.
     enum class ModDest : int
