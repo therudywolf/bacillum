@@ -69,3 +69,27 @@ jobs:
 
       - name: Build
         run: cmake --build build --parallel 4
+
+  tests:
+    name: Unit tests (Catch2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libjack-jackd2-dev libx11-dev libxcomposite-dev \
+            libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev libcurl4-openssl-dev \
+            libwebkit2gtk-4.1-dev ninja-build xvfb
+
+      - name: Configure (tests on)
+        run: cmake -B build-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DBACILLUM_BUILD_TESTS=ON
+
+      - name: Build tests
+        run: cmake --build build-tests --target BacillumTests --parallel 4
+
+      - name: Run tests
+        run: xvfb-run -a ctest --test-dir build-tests --output-on-failure

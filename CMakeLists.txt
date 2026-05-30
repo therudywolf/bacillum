@@ -99,3 +99,38 @@ if(MSVC)
 else()
     target_compile_options(Bacillum PRIVATE -Wall -Wextra -Wpedantic -Wshadow)
 endif()
+
+# ---- Offline DSP unit tests (Catch2) -----------------------------------
+# OFF by default so the plugin build stays lean; enable with
+#   cmake -B build-tests -DBACILLUM_BUILD_TESTS=ON  &&  ctest --test-dir build-tests
+option(BACILLUM_BUILD_TESTS "Build offline DSP unit tests (Catch2)" OFF)
+if(BACILLUM_BUILD_TESTS)
+    FetchContent_Declare(Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.5.4
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(Catch2)
+
+    juce_add_console_app(BacillumTests PRODUCT_NAME "BacillumTests")
+    target_sources(BacillumTests PRIVATE tests/Tests.cpp)
+    target_include_directories(BacillumTests PRIVATE source)
+    target_compile_definitions(BacillumTests PRIVATE
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
+    target_link_libraries(BacillumTests PRIVATE
+        Catch2::Catch2WithMain
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_dsp
+        juce::juce_audio_basics
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_core
+        juce::juce_recommended_config_flags)
+
+    enable_testing()
+    include(CTest)
+    include("${catch2_SOURCE_DIR}/extras/Catch.cmake")
+    catch_discover_tests(BacillumTests)
+endif()
