@@ -28,6 +28,7 @@ namespace bacillum
           subLevel    (p.getAPVTS(), params::ids::subLevel,    "SUB.LVL"),
           hyperDetune (p.getAPVTS(), params::ids::hyperDetune, "H.DET"),
           hyperMix    (p.getAPVTS(), params::ids::hyperMix,    "H.MIX"),
+          wavetablePos(p.getAPVTS(), params::ids::wavetablePos,"WT.POS"),
 
           noiseType  (p.getAPVTS(), params::ids::noiseType,  "NOISE"),
           noiseLevel (p.getAPVTS(), params::ids::noiseLevel, "N.LVL"),
@@ -127,7 +128,7 @@ namespace bacillum
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
                          &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
-                         &subLevel, &hyperDetune, &hyperMix,
+                         &subLevel, &hyperDetune, &hyperMix, &wavetablePos,
                          &noiseLevel, &unisonCount, &unisonDetune, &unisonSpread,
                          &filterCutoff, &filterRes, &filterDrive,
                          &filterKeytrack, &filterEnvAmt, &filterVelAmt,
@@ -412,7 +413,7 @@ namespace bacillum
         // R0 ─ sources
         sections[0]  = { "// OSC.1",          sectionRect (0, 0) };
         sections[1]  = { "// OSC.2",          sectionRect (1, 0) };
-        sections[2]  = { "// SUB + HYPER",    sectionRect (2, 0) };
+        sections[2]  = { "// SUB + HYPER + WT", sectionRect (2, 0) };
         sections[3]  = { "// NOISE + UNISON", sectionRect (3, 0) };
         // R1 ─ filter chain
         sections[4]  = { "// FILTER",         sectionRect (0, 1) };
@@ -484,10 +485,11 @@ namespace bacillum
             const int comboW = top.getWidth() / 2;
             layoutCombo (top.removeFromLeft (comboW), subWaveform.combo, subWaveform.label);
             layoutCombo (top,                         subOctave.combo,   subOctave.label);
-            const int kw = c.getWidth() / 3;
-            layoutKnob (c.removeFromLeft (kw), subLevel.slider,    subLevel.label);
-            layoutKnob (c.removeFromLeft (kw), hyperDetune.slider, hyperDetune.label);
-            layoutKnob (c.removeFromLeft (kw), hyperMix.slider,    hyperMix.label);
+            const int kw = c.getWidth() / 4;
+            layoutKnob (c.removeFromLeft (kw), subLevel.slider,     subLevel.label);
+            layoutKnob (c.removeFromLeft (kw), hyperDetune.slider,  hyperDetune.label);
+            layoutKnob (c.removeFromLeft (kw), hyperMix.slider,     hyperMix.label);
+            layoutKnob (c.removeFromLeft (kw), wavetablePos.slider, wavetablePos.label);
         }
         // NOISE + UNISON
         {

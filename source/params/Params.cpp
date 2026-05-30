@@ -17,6 +17,7 @@ namespace bacillum::params
             case Waveform::Saw:      return "Saw";
             case Waveform::Square:   return "Square";
             case Waveform::HyperSaw: return "HyperSaw";
+            case Waveform::Wavetable:return "Wavetable";
             default:                 return {};
         }
     }
@@ -292,6 +293,9 @@ namespace bacillum::params
         // --- HyperSaw shaping ---------------------------------------------
         addF(ids::hyperDetune, "Hyper Detune", unit01, 0.5f);
         addF(ids::hyperMix,    "Hyper Mix",    unit01, 0.6f);
+
+        // --- Wavetable scan ------------------------------------------------
+        addF(ids::wavetablePos, "Wavetable Pos", unit01, 0.0f);
 
         // --- Noise ---------------------------------------------------------
         layout.add(std::make_unique<juce::AudioParameterChoice>(

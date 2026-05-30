@@ -35,6 +35,9 @@ namespace bacillum::params
         inline constexpr auto hyperDetune    = "hyper_detune";   // 0..1
         inline constexpr auto hyperMix       = "hyper_mix";      // 0..1
 
+        // Wavetable scan position (applies when waveform == Wavetable)
+        inline constexpr auto wavetablePos   = "wavetable_pos";  // 0..1
+
         // Noise
         inline constexpr auto noiseType      = "noise_type";
         inline constexpr auto noiseLevel     = "noise_level";
@@ -148,7 +151,7 @@ namespace bacillum::params
 
     enum class Waveform : int
     {
-        Sine = 0, Triangle, Saw, Square, HyperSaw,
+        Sine = 0, Triangle, Saw, Square, HyperSaw, Wavetable,
         NumWaveforms
     };
 

@@ -28,6 +28,7 @@ namespace bacillum
         pSubOctave      = apvts.getRawParameterValue (params::ids::subOctave);
         pHyperDetune    = apvts.getRawParameterValue (params::ids::hyperDetune);
         pHyperMix       = apvts.getRawParameterValue (params::ids::hyperMix);
+        pWavetablePos   = apvts.getRawParameterValue (params::ids::wavetablePos);
         pNoiseType      = apvts.getRawParameterValue (params::ids::noiseType);
         pNoiseLevel     = apvts.getRawParameterValue (params::ids::noiseLevel);
 
@@ -188,6 +189,9 @@ namespace bacillum
         // HyperSaw shaping
         out.hyperDetune = pHyperDetune->load();
         out.hyperMix    = pHyperMix->load();
+
+        // Wavetable scan
+        out.wavetablePos = pWavetablePos->load();
 
         // Noise
         out.noiseType  = loadChoice<params::NoiseType>(pNoiseType, (int) params::NoiseType::NumNoiseTypes);

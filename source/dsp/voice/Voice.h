@@ -2,6 +2,7 @@
 
 #include "dsp/oscillators/Oscillator.h"
 #include "dsp/oscillators/HyperSaw.h"
+#include "dsp/oscillators/Wavetable.h"
 #include "dsp/oscillators/Noise.h"
 #include "dsp/filters/SvfTpt.h"
 #include "dsp/filters/MoogLadder.h"
@@ -49,6 +50,9 @@ namespace bacillum::dsp
         // HyperSaw shaping (shared for any OSC running in HyperSaw mode)
         float hyperDetune { 0.5f };
         float hyperMix    { 0.6f };
+
+        // Wavetable scan (shared for any OSC running in Wavetable mode)
+        float wavetablePos { 0.0f };
 
         // Noise
         params::NoiseType noiseType { params::NoiseType::White };
@@ -144,8 +148,9 @@ namespace bacillum::dsp
         static void applyFilterMode(params::FilterMode m, SvfTpt& f, MoogLadder& l, bool& useL) noexcept;
 
         // DSP graph
-        Oscillator osc1, osc2, subOsc;
-        HyperSaw   hyper1, hyper2;   // engaged when waveform == HyperSaw
+        Oscillator   osc1, osc2, subOsc;
+        HyperSaw     hyper1, hyper2;   // engaged when waveform == HyperSaw
+        WavetableOsc wt1, wt2;         // engaged when waveform == Wavetable
         WhiteNoise whiteNoise;
         PinkNoise  pinkNoise;
         SvfTpt     filter;          // Cytomic SVF (filter 1)

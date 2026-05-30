@@ -93,9 +93,9 @@ namespace bacillum
         LabeledCombo  osc2Wave;
         LabeledRotary osc2Pitch, osc2Detune, osc2PW, osc2Level;
 
-        // === Sub + HyperSaw ================================================
+        // === Sub + HyperSaw + Wavetable ====================================
         LabeledCombo  subWaveform, subOctave;
-        LabeledRotary subLevel, hyperDetune, hyperMix;
+        LabeledRotary subLevel, hyperDetune, hyperMix, wavetablePos;
 
         // === Noise + Unison ================================================
         LabeledCombo  noiseType;

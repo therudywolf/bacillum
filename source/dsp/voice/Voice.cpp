@@ -19,6 +19,8 @@ namespace bacillum::dsp
         subOsc.setWaveform(params::Waveform::Sine);
         hyper1.prepare(sr);
         hyper2.prepare(sr);
+        wt1.prepare(sr);
+        wt2.prepare(sr);
         filter.prepare(sr);
         ladder.prepare(sr);
         filter2.prepare(sr);
@@ -39,6 +41,8 @@ namespace bacillum::dsp
         subOsc.reset();
         hyper1.reset();
         hyper2.reset();
+        wt1.reset();
+        wt2.reset();
         whiteNoise.reset(0x9E3779B9u);
         pinkNoise.reset(0xC0FFEE13u);
         filter.reset();
@@ -154,6 +158,10 @@ namespace bacillum::dsp
         hyper1.setMix   (p.hyperMix);
         hyper2.setDetune(p.hyperDetune);
         hyper2.setMix   (p.hyperMix);
+
+        // Wavetable scan (applies to whichever OSC is in Wavetable mode).
+        wt1.setPosition(p.wavetablePos);
+        wt2.setPosition(p.wavetablePos);
 
         // For non-HyperSaw OSC, configure the classic VA oscillator.
         if (osc1Wave != params::Waveform::HyperSaw)
@@ -277,11 +285,13 @@ namespace bacillum::dsp
         const float f1 = juce::jlimit(0.01f, maxHz, baseHz * ratio1);
         osc1.setFrequency(f1);
         hyper1.setFrequency(f1);
+        wt1.setFrequency(f1);
 
         const float ratio2 = std::pow(2.0f, (osc2OffsetSemis + osc2ModSemis + unisonSemis + bend) * (1.0f / 12.0f));
         const float f2 = juce::jlimit(0.01f, maxHz, baseHz * ratio2);
         osc2.setFrequency(f2);
         hyper2.setFrequency(f2);
+        wt2.setFrequency(f2);
 
         const float subRatio = std::pow(2.0f, (bend + (float) subOctOffset + unisonSemis) * (1.0f / 12.0f));
         subOsc.setFrequency(juce::jlimit(0.01f, maxHz, baseHz * subRatio));
@@ -326,10 +336,14 @@ namespace bacillum::dsp
             lfo2Value = lfo2.tick();
 
             // ---- Source mix (effective levels, updated at control rate) -
-            const float o1 = (osc1Wave == params::Waveform::HyperSaw
-                                ? hyper1.tick() : osc1.tick()) * osc1Level;
-            const float o2 = (osc2Wave == params::Waveform::HyperSaw
-                                ? hyper2.tick() : osc2.tick()) * osc2Level;
+            const float o1raw = (osc1Wave == params::Waveform::HyperSaw)  ? hyper1.tick()
+                              : (osc1Wave == params::Waveform::Wavetable) ? wt1.tick()
+                              : osc1.tick();
+            const float o2raw = (osc2Wave == params::Waveform::HyperSaw)  ? hyper2.tick()
+                              : (osc2Wave == params::Waveform::Wavetable) ? wt2.tick()
+                              : osc2.tick();
+            const float o1 = o1raw * osc1Level;
+            const float o2 = o2raw * osc2Level;
             const float os = subOsc.tick() * subLevel;
             const float on = (noiseType == params::NoiseType::White
                                 ? whiteNoise.tick()

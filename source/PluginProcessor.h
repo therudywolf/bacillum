@@ -90,6 +90,7 @@ namespace bacillum
         std::atomic<float>* pSubOctave      { nullptr };
         std::atomic<float>* pHyperDetune    { nullptr };
         std::atomic<float>* pHyperMix       { nullptr };
+        std::atomic<float>* pWavetablePos   { nullptr };
         std::atomic<float>* pNoiseType      { nullptr };
         std::atomic<float>* pNoiseLevel     { nullptr };
 
