@@ -85,7 +85,7 @@ namespace bacillum::params
         inline constexpr std::array<const char*, kNumModSlots> modDepth {
             "mod1_dep","mod2_dep","mod3_dep","mod4_dep","mod5_dep","mod6_dep","mod7_dep","mod8_dep" };
 
-        // Filter
+        // Filter 1
         inline constexpr auto filterMode      = "filter_mode";
         inline constexpr auto filterCutoff    = "filter_cutoff";
         inline constexpr auto filterRes       = "filter_resonance";
@@ -93,6 +93,14 @@ namespace bacillum::params
         inline constexpr auto filterKeytrack  = "filter_keytrack";
         inline constexpr auto filterEnvAmt    = "filter_env_amount";
         inline constexpr auto filterVelAmt    = "filter_vel_amount";
+
+        // Filter 2 + routing + saturator
+        inline constexpr auto filterRouting   = "filter_routing";
+        inline constexpr auto filter2Mode     = "filter2_mode";
+        inline constexpr auto filter2Cutoff   = "filter2_cutoff";
+        inline constexpr auto filter2Res      = "filter2_resonance";
+        inline constexpr auto satType         = "saturator_type";
+        inline constexpr auto satAmount       = "saturator_amount";
 
         // Filter env
         inline constexpr auto filterAttack   = "filter_attack";
@@ -177,6 +185,22 @@ namespace bacillum::params
         NumModes
     };
 
+    // Dual-filter topology (spec §1.1).
+    enum class FilterRouting : int
+    {
+        Single = 0,   // F1 only
+        Serial,       // F1 → saturator → F2
+        Parallel,     // F1(mix) + F2(mix)
+        Split,        // F1(osc1+sub) + F2(osc2+noise)
+        NumRoutings
+    };
+
+    enum class SaturatorType : int
+    {
+        Off = 0, Tanh, SoftClip, HardClip, Foldback, BitCrush, RateReduce,
+        NumTypes
+    };
+
     // Note divisions for tempo-synced LFO / delay / arpeggiator.
     // Index 0 = Free (use the Hz/seconds knob instead).
     enum class SyncDivision : int
@@ -240,6 +264,7 @@ namespace bacillum::params
         Osc1Level, Osc2Level, SubLevel, NoiseLevel,
         Pan, Amp,
         Lfo1Rate, Lfo2Rate,
+        Cutoff2, Reso2,
         NumDests
     };
 

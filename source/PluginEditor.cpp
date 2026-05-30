@@ -43,6 +43,13 @@ namespace bacillum
           filterEnvAmt   (p.getAPVTS(), params::ids::filterEnvAmt,   "ENV.AMT"),
           filterVelAmt   (p.getAPVTS(), params::ids::filterVelAmt,   "VEL.AMT"),
 
+          filterRouting (p.getAPVTS(), params::ids::filterRouting, "ROUTE"),
+          filter2Mode   (p.getAPVTS(), params::ids::filter2Mode,   "F2 MODE"),
+          satType       (p.getAPVTS(), params::ids::satType,       "SAT"),
+          filter2Cutoff (p.getAPVTS(), params::ids::filter2Cutoff, "F2 CUT"),
+          filter2Res    (p.getAPVTS(), params::ids::filter2Res,    "F2 RES"),
+          satAmount     (p.getAPVTS(), params::ids::satAmount,     "SAT.AMT"),
+
           fEnvA (p.getAPVTS(), params::ids::filterAttack,  "A"),
           fEnvD (p.getAPVTS(), params::ids::filterDecay,   "D"),
           fEnvS (p.getAPVTS(), params::ids::filterSustain, "S"),
@@ -114,9 +121,9 @@ namespace bacillum
         scope.setSampleRate    (p.getCurrentSampleRate());
         analyzer.setSampleRate (p.getCurrentSampleRate());
 
-        setSize (1280, 1180);
+        setSize (1280, 1300);
         setResizable (true, true);
-        setResizeLimits (1040, 900, 2400, 1700);
+        setResizeLimits (1040, 980, 2400, 1800);
 
         for (auto* r : { &osc1Pitch, &osc1Detune, &osc1PW, &osc1Level,
                          &osc2Pitch, &osc2Detune, &osc2PW, &osc2Level,
@@ -124,6 +131,7 @@ namespace bacillum
                          &noiseLevel, &unisonCount, &unisonDetune, &unisonSpread,
                          &filterCutoff, &filterRes, &filterDrive,
                          &filterKeytrack, &filterEnvAmt, &filterVelAmt,
+                         &filter2Cutoff, &filter2Res, &satAmount,
                          &fEnvA, &fEnvD, &fEnvS, &fEnvR,
                          &ampA,  &ampD,  &ampS,  &ampR,
                          &lfo1Rate, &lfo1ToCutoff, &lfo1ToPitch, &lfo1ToAmp, &lfo1FadeIn,
@@ -139,6 +147,7 @@ namespace bacillum
         for (auto* c : { &osc1Wave, &osc2Wave,
                          &subWaveform, &subOctave,
                          &noiseType, &filterMode,
+                         &filterRouting, &filter2Mode, &satType,
                          &lfo1Shape, &lfo1Sync,
                          &lfo2Shape, &lfo2Sync, &lfo3Shape, &lfo3Sync,
                          &chorusMode, &delaySync,
@@ -387,8 +396,8 @@ namespace bacillum
         auto matrixArea = body.removeFromBottom (matrixH);
         body.removeFromBottom (gap);
 
-        // Remaining body = 4 cols × 5 rows panel grid.
-        const int cols = 4, rows = 5;
+        // Remaining body = 4 cols × 6 rows panel grid.
+        const int cols = 4, rows = 6;
         const int colW = (body.getWidth()  - (cols - 1) * gap) / cols;
         const int rowH = (body.getHeight() - (rows - 1) * gap) / rows;
 
@@ -426,6 +435,16 @@ namespace bacillum
             auto arpRect = sectionRect (1, 4);
             arpRect.setWidth (3 * colW + 2 * gap);   // span cols 1-3
             sections[17] = { "// ARP",        arpRect };
+        }
+        // R5 ─ dual filter (two half-width panels)
+        {
+            auto f2Rect = sectionRect (0, 5);
+            f2Rect.setWidth (2 * colW + gap);
+            sections[19] = { "// FILTER 2", f2Rect };
+
+            auto rsRect = sectionRect (2, 5);
+            rsRect.setWidth (2 * colW + gap);
+            sections[20] = { "// ROUTING + SATURATOR", rsRect };
         }
         // Full-width mod matrix
         sections[18] = { "// MOD MATRIX  (source -> destination x depth)", matrixArea };
@@ -612,6 +631,23 @@ namespace bacillum
             const int kw = c.getWidth() / 4;
             layoutKnob (c.removeFromLeft (kw), arpOctaves.slider, arpOctaves.label);
             layoutKnob (c.removeFromLeft (kw), arpGate.slider,    arpGate.label);
+        }
+        // FILTER 2 (mode combo + cutoff + res)
+        {
+            auto c = inset (sections[19].bounds);
+            layoutCombo (c.removeFromTop (38), filter2Mode.combo, filter2Mode.label);
+            const int kw = c.getWidth() / 2;
+            layoutKnob (c.removeFromLeft (kw), filter2Cutoff.slider, filter2Cutoff.label);
+            layoutKnob (c.removeFromLeft (kw), filter2Res.slider,    filter2Res.label);
+        }
+        // ROUTING + SATURATOR (routing combo + sat type combo + amount knob)
+        {
+            auto c = inset (sections[20].bounds);
+            auto top = c.removeFromTop (38);
+            const int comboW = top.getWidth() / 2;
+            layoutCombo (top.removeFromLeft (comboW), filterRouting.combo, filterRouting.label);
+            layoutCombo (top,                         satType.combo,       satType.label);
+            layoutKnob (c.removeFromLeft (c.getWidth() / 2), satAmount.slider, satAmount.label);
         }
         // MOD MATRIX — 8 vertical slots: src combo / dst combo / depth knob.
         {

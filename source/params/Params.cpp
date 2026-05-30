@@ -90,6 +90,33 @@ namespace bacillum::params
         }
     }
 
+    static juce::String filterRoutingName(int i)
+    {
+        switch (static_cast<FilterRouting>(i))
+        {
+            case FilterRouting::Single:   return "Single";
+            case FilterRouting::Serial:   return "Serial";
+            case FilterRouting::Parallel: return "Parallel";
+            case FilterRouting::Split:    return "Split";
+            default:                      return {};
+        }
+    }
+
+    static juce::String saturatorTypeName(int i)
+    {
+        switch (static_cast<SaturatorType>(i))
+        {
+            case SaturatorType::Off:        return "Off";
+            case SaturatorType::Tanh:       return "Tanh";
+            case SaturatorType::SoftClip:   return "Soft Clip";
+            case SaturatorType::HardClip:   return "Hard Clip";
+            case SaturatorType::Foldback:   return "Foldback";
+            case SaturatorType::BitCrush:   return "Bit Crush";
+            case SaturatorType::RateReduce: return "Rate Reduce";
+            default:                        return {};
+        }
+    }
+
     static juce::String syncDivisionName(int i)
     {
         switch (static_cast<SyncDivision>(i))
@@ -165,6 +192,8 @@ namespace bacillum::params
             case ModDest::Amp:        return "Amp";
             case ModDest::Lfo1Rate:   return "LFO1 Rate";
             case ModDest::Lfo2Rate:   return "LFO2 Rate";
+            case ModDest::Cutoff2:    return "Cutoff 2";
+            case ModDest::Reso2:      return "Resonance 2";
             default:                  return {};
         }
     }
@@ -291,6 +320,22 @@ namespace bacillum::params
         addF(ids::filterKeytrack,  "Filter KeyTrk",  unit01, 0.0f);
         addF(ids::filterEnvAmt,    "Filter EnvAmt",  bipolar, 0.0f);
         addF(ids::filterVelAmt,    "Filter VelAmt",  unit01, 0.0f);
+
+        // Filter 2 + routing + saturator
+        const auto routings = makeChoices(static_cast<int>(FilterRouting::NumRoutings), filterRoutingName);
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::filterRouting, kVersionHint }, "Filter Routing",
+            routings, static_cast<int>(FilterRouting::Single)));
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::filter2Mode, kVersionHint }, "Filter2 Mode",
+            filterModes, static_cast<int>(FilterMode::LP12)));
+        addF(ids::filter2Cutoff, "Filter2 Cutoff", cutoffRange, 8000.0f, "Hz");
+        addF(ids::filter2Res,    "Filter2 Reso",   unit01, 0.1f);
+        const auto satTypes = makeChoices(static_cast<int>(SaturatorType::NumTypes), saturatorTypeName);
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            PID{ ids::satType, kVersionHint }, "Saturator Type",
+            satTypes, static_cast<int>(SaturatorType::Off)));
+        addF(ids::satAmount, "Saturator Amount", unit01, 0.5f);
 
         // Filter env
         addF(ids::filterAttack,  "Filter A", timeRange, 0.005f, "s");

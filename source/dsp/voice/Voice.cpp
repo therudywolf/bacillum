@@ -21,6 +21,8 @@ namespace bacillum::dsp
         hyper2.prepare(sr);
         filter.prepare(sr);
         ladder.prepare(sr);
+        filter2.prepare(sr);
+        ladder2.prepare(sr);
         amp.prepare(sr);
         fEnv.prepare(sr);
         env3.prepare(sr);
@@ -41,6 +43,9 @@ namespace bacillum::dsp
         pinkNoise.reset(0xC0FFEE13u);
         filter.reset();
         ladder.reset();
+        filter2.reset();
+        ladder2.reset();
+        saturator.reset();
         amp.reset();
         fEnv.reset();
         env3.reset();
@@ -64,19 +69,19 @@ namespace bacillum::dsp
         startStamp = 0;
     }
 
-    void Voice::applyFilterMode(params::FilterMode m) noexcept
+    void Voice::applyFilterMode(params::FilterMode m, SvfTpt& f, MoogLadder& l, bool& useL) noexcept
     {
         switch (m)
         {
-            case params::FilterMode::LP12:  useLadder = false; filter.setMode(SvfTpt::Mode::LP12);  break;
-            case params::FilterMode::LP24:  useLadder = false; filter.setMode(SvfTpt::Mode::LP24);  break;
-            case params::FilterMode::HP12:  useLadder = false; filter.setMode(SvfTpt::Mode::HP);    break;
-            case params::FilterMode::BP12:  useLadder = false; filter.setMode(SvfTpt::Mode::BP);    break;
-            case params::FilterMode::Notch: useLadder = false; filter.setMode(SvfTpt::Mode::Notch); break;
-            case params::FilterMode::Peak:  useLadder = false; filter.setMode(SvfTpt::Mode::Peak);  break;
-            case params::FilterMode::Ladder24: useLadder = true; ladder.setFourPole(true);  break;
-            case params::FilterMode::Ladder12: useLadder = true; ladder.setFourPole(false); break;
-            default:                        useLadder = false; filter.setMode(SvfTpt::Mode::LP12);  break;
+            case params::FilterMode::LP12:  useL = false; f.setMode(SvfTpt::Mode::LP12);  break;
+            case params::FilterMode::LP24:  useL = false; f.setMode(SvfTpt::Mode::LP24);  break;
+            case params::FilterMode::HP12:  useL = false; f.setMode(SvfTpt::Mode::HP);    break;
+            case params::FilterMode::BP12:  useL = false; f.setMode(SvfTpt::Mode::BP);    break;
+            case params::FilterMode::Notch: useL = false; f.setMode(SvfTpt::Mode::Notch); break;
+            case params::FilterMode::Peak:  useL = false; f.setMode(SvfTpt::Mode::Peak);  break;
+            case params::FilterMode::Ladder24: useL = true; l.setFourPole(true);  break;
+            case params::FilterMode::Ladder12: useL = true; l.setFourPole(false); break;
+            default:                        useL = false; f.setMode(SvfTpt::Mode::LP12);  break;
         }
     }
 
@@ -184,7 +189,7 @@ namespace bacillum::dsp
         pitchBendSemis  = p.pitchBendSemis;
         recomputeOscFrequencies();
 
-        applyFilterMode(p.filterMode);
+        applyFilterMode(p.filterMode, filter, ladder, useLadder);
         filterCutoffBase  = p.filterCutoff;
         filterRes01Base   = p.filterRes01;
         filter.setResonance01(filterRes01Base);
@@ -194,6 +199,16 @@ namespace bacillum::dsp
         filterKeytrack    = p.filterKeytrack;
         filterEnvAmount   = p.filterEnvAmount;
         filterVelAmount   = p.filterVelAmount;
+
+        // Filter 2 + routing + saturator.
+        routing = p.filterRouting;
+        applyFilterMode(p.filter2Mode, filter2, ladder2, useLadder2);
+        filter2CutoffBase = p.filter2Cutoff;
+        filter2Res01Base  = p.filter2Res01;
+        filter2.setResonance01(filter2Res01Base);
+        ladder2.setResonance01(filter2Res01Base);
+        saturator.setType  (p.satType);
+        saturator.setAmount(p.satAmount);
 
         // Glide coefficient per control step (one-pole approach).
         if (p.glideTime <= 0.001f)
@@ -289,6 +304,20 @@ namespace bacillum::dsp
         float lfo1Value = 0.0f;
         float lfo2Value = 0.0f;
 
+        // Filter helpers (read members at call time, so control-rate changes apply).
+        auto driveFn = [this](float x) -> float
+        {
+            if (filterDrive01 > 0.001f)
+            {
+                const float pre  = 1.0f + filterDrive01 * 6.0f;
+                const float comp = 1.0f / (1.0f + filterDrive01 * 1.5f);
+                return std::tanh(x * pre) * comp;
+            }
+            return x;
+        };
+        auto f1 = [this](float x) { return useLadder  ? ladder.process(x)  : filter.process(x);  };
+        auto f2 = [this](float x) { return useLadder2 ? ladder2.process(x) : filter2.process(x); };
+
         for (int n = 0; n < numSamples; ++n)
         {
             const int i = startSample + n;
@@ -305,14 +334,8 @@ namespace bacillum::dsp
             const float on = (noiseType == params::NoiseType::White
                                 ? whiteNoise.tick()
                                 : pinkNoise.tick()) * noiseLevel;
-            float src = o1 + o2 + os + on;
-
-            if (filterDrive01 > 0.001f)
-            {
-                const float pre  = 1.0f + filterDrive01 * 6.0f;
-                const float comp = 1.0f / (1.0f + filterDrive01 * 1.5f);
-                src = std::tanh(src * pre) * comp;
-            }
+            const float grpA = o1 + os;   // OSC1 + sub  → filter 1 in Split
+            const float grpB = o2 + on;   // OSC2 + noise → filter 2 in Split
 
             const float fe = fEnv.tick();
             const float e3 = env3.tick();
@@ -348,7 +371,7 @@ namespace bacillum::dsp
                 // Accumulate per destination.
                 float dCut = 0, dRes = 0, dDrive = 0, dPitch = 0, dOsc2 = 0;
                 float dPw1 = 0, dPw2 = 0, dL1 = 0, dL2 = 0, dSub = 0, dNz = 0;
-                float dPan = 0, dAmp = 0, dR1 = 0, dR2 = 0;
+                float dPan = 0, dAmp = 0, dR1 = 0, dR2 = 0, dCut2 = 0, dRes2 = 0;
 
                 for (const auto& slot : modSlots)
                 {
@@ -375,6 +398,8 @@ namespace bacillum::dsp
                         case params::ModDest::Amp:        dAmp   += v; break;
                         case params::ModDest::Lfo1Rate:   dR1    += v; break;
                         case params::ModDest::Lfo2Rate:   dR2    += v; break;
+                        case params::ModDest::Cutoff2:    dCut2  += v; break;
+                        case params::ModDest::Reso2:      dRes2  += v; break;
                         default: break;
                     }
                 }
@@ -389,12 +414,20 @@ namespace bacillum::dsp
                 const float velOct = filterVelAmount * 3.0f * velocity;
                 const float ktOct  = keytrackSemis * (1.0f / 12.0f);
                 const float lfoOct = lfo1Value * depthCutoffOct;
-                const float cutoff = filterCutoffBase * std::pow(2.0f,
-                                        envOct + velOct + ktOct + lfoOct + dCut * 5.0f);
+                const float modOctCommon = envOct + velOct + ktOct + lfoOct;
+                const float cutoff = filterCutoffBase * std::pow(2.0f, modOctCommon + dCut * 5.0f);
                 filter.setCutoff(cutoff);
                 ladder.setCutoff(cutoff);
 
-                // Resonance / drive.
+                // Filter 2 follows the same env/keytrack/LFO offset around its own base.
+                const float cutoff2 = filter2CutoffBase * std::pow(2.0f, modOctCommon + dCut2 * 5.0f);
+                filter2.setCutoff(cutoff2);
+                ladder2.setCutoff(cutoff2);
+                const float res2Eff = juce::jlimit(0.0f, 1.0f, filter2Res01Base + dRes2);
+                filter2.setResonance01(res2Eff);
+                ladder2.setResonance01(res2Eff);
+
+                // Resonance / drive (filter 1).
                 const float resEff = juce::jlimit(0.0f, 1.0f, filterRes01Base + dRes);
                 filter.setResonance01(resEff);
                 ladder.setResonance01(resEff);
@@ -424,8 +457,27 @@ namespace bacillum::dsp
             if (++controlUpdateCounter >= kControlUpdateInterval)
                 controlUpdateCounter = 0;
 
-            // ---- Filter (SVF or Moog ladder) ----------------------------
-            const float filtered = useLadder ? ladder.process(src) : filter.process(src);
+            // ---- Filter routing + saturator -----------------------------
+            float filtered;
+            switch (routing)
+            {
+                case params::FilterRouting::Serial:
+                    filtered = f2(saturator.process(f1(driveFn(grpA + grpB))));
+                    break;
+                case params::FilterRouting::Parallel:
+                {
+                    const float s = driveFn(grpA + grpB);
+                    filtered = saturator.process(0.5f * (f1(s) + f2(s)));
+                    break;
+                }
+                case params::FilterRouting::Split:
+                    filtered = saturator.process(f1(driveFn(grpA)) + f2(driveFn(grpB)));
+                    break;
+                case params::FilterRouting::Single:
+                default:
+                    filtered = saturator.process(f1(driveFn(grpA + grpB)));
+                    break;
+            }
 
             // ---- VCA: amp env × velocity × LFO1 tremolo × matrix amp ----
             const float env = amp.tick();

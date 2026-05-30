@@ -106,6 +106,10 @@ namespace bacillum
         LabeledRotary filterCutoff, filterRes, filterDrive;
         LabeledRotary filterKeytrack, filterEnvAmt, filterVelAmt;
 
+        // === Filter 2 / routing / saturator ===============================
+        LabeledCombo  filterRouting, filter2Mode, satType;
+        LabeledRotary filter2Cutoff, filter2Res, satAmount;
+
         // === Envs ==========================================================
         LabeledRotary fEnvA, fEnvD, fEnvS, fEnvR;
         LabeledRotary ampA, ampD, ampS, ampR;
@@ -150,7 +154,7 @@ namespace bacillum
         gui::Oscilloscope scope;
         gui::Spectroscope analyzer;
 
-        std::array<Section, 20> sections {};
+        std::array<Section, 24> sections {};
         bool caretOn { true };
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)

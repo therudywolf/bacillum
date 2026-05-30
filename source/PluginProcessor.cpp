@@ -76,6 +76,13 @@ namespace bacillum
         pFilterEnvAmt   = apvts.getRawParameterValue (params::ids::filterEnvAmt);
         pFilterVelAmt   = apvts.getRawParameterValue (params::ids::filterVelAmt);
 
+        pFilterRouting  = apvts.getRawParameterValue (params::ids::filterRouting);
+        pFilter2Mode    = apvts.getRawParameterValue (params::ids::filter2Mode);
+        pFilter2Cutoff  = apvts.getRawParameterValue (params::ids::filter2Cutoff);
+        pFilter2Res     = apvts.getRawParameterValue (params::ids::filter2Res);
+        pSatType        = apvts.getRawParameterValue (params::ids::satType);
+        pSatAmount      = apvts.getRawParameterValue (params::ids::satAmount);
+
         pFilterAttack   = apvts.getRawParameterValue (params::ids::filterAttack);
         pFilterDecay    = apvts.getRawParameterValue (params::ids::filterDecay);
         pFilterSustain  = apvts.getRawParameterValue (params::ids::filterSustain);
@@ -194,6 +201,14 @@ namespace bacillum
         out.filterKeytrack  = pFilterKeytrack->load();
         out.filterEnvAmount = pFilterEnvAmt->load();
         out.filterVelAmount = pFilterVelAmt->load();
+
+        // Filter 2 + routing + saturator
+        out.filterRouting = loadChoice<params::FilterRouting>(pFilterRouting, (int) params::FilterRouting::NumRoutings);
+        out.filter2Mode   = loadChoice<params::FilterMode>(pFilter2Mode, (int) params::FilterMode::NumModes);
+        out.filter2Cutoff = pFilter2Cutoff->load();
+        out.filter2Res01  = pFilter2Res->load();
+        out.satType       = loadChoice<params::SaturatorType>(pSatType, (int) params::SaturatorType::NumTypes);
+        out.satAmount     = pSatAmount->load();
 
         // Envs
         out.fEnvA = pFilterAttack->load();

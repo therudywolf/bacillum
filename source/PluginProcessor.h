@@ -135,6 +135,13 @@ namespace bacillum
         std::atomic<float>* pFilterEnvAmt   { nullptr };
         std::atomic<float>* pFilterVelAmt   { nullptr };
 
+        std::atomic<float>* pFilterRouting  { nullptr };
+        std::atomic<float>* pFilter2Mode    { nullptr };
+        std::atomic<float>* pFilter2Cutoff  { nullptr };
+        std::atomic<float>* pFilter2Res     { nullptr };
+        std::atomic<float>* pSatType        { nullptr };
+        std::atomic<float>* pSatAmount      { nullptr };
+
         std::atomic<float>* pFilterAttack   { nullptr };
         std::atomic<float>* pFilterDecay    { nullptr };
         std::atomic<float>* pFilterSustain  { nullptr };

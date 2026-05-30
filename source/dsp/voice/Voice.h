@@ -5,6 +5,7 @@
 #include "dsp/oscillators/Noise.h"
 #include "dsp/filters/SvfTpt.h"
 #include "dsp/filters/MoogLadder.h"
+#include "dsp/effects/Saturator.h"
 #include "dsp/envelopes/Adsr.h"
 #include "dsp/lfo/Lfo.h"
 #include "dsp/DcBlocker.h"
@@ -53,7 +54,7 @@ namespace bacillum::dsp
         params::NoiseType noiseType { params::NoiseType::White };
         float noiseLevel  { 0.0f };
 
-        // Filter
+        // Filter 1
         params::FilterMode filterMode { params::FilterMode::LP12 };
         float filterCutoff    { 12000.0f };
         float filterRes01     { 0.1f };
@@ -61,6 +62,14 @@ namespace bacillum::dsp
         float filterKeytrack  { 0.0f };
         float filterEnvAmount { 0.0f };
         float filterVelAmount { 0.0f };
+
+        // Filter 2 + routing + saturator
+        params::FilterRouting filterRouting { params::FilterRouting::Single };
+        params::FilterMode    filter2Mode   { params::FilterMode::LP12 };
+        float filter2Cutoff { 8000.0f };
+        float filter2Res01  { 0.1f };
+        params::SaturatorType satType   { params::SaturatorType::Off };
+        float satAmount { 0.5f };
 
         // Filter envelope
         float fEnvA { 0.005f }, fEnvD { 0.30f }, fEnvS { 0.5f }, fEnvR { 0.30f };
@@ -132,16 +141,21 @@ namespace bacillum::dsp
 
     private:
         void recomputeOscFrequencies() noexcept;
-        void applyFilterMode(params::FilterMode m) noexcept;
+        static void applyFilterMode(params::FilterMode m, SvfTpt& f, MoogLadder& l, bool& useL) noexcept;
 
         // DSP graph
         Oscillator osc1, osc2, subOsc;
         HyperSaw   hyper1, hyper2;   // engaged when waveform == HyperSaw
         WhiteNoise whiteNoise;
         PinkNoise  pinkNoise;
-        SvfTpt     filter;          // Cytomic SVF
-        MoogLadder ladder;          // Huovilainen ladder
+        SvfTpt     filter;          // Cytomic SVF (filter 1)
+        MoogLadder ladder;          // Huovilainen ladder (filter 1)
         bool       useLadder { false };
+        SvfTpt     filter2;         // filter 2
+        MoogLadder ladder2;
+        bool       useLadder2 { false };
+        Saturator  saturator;       // between filters
+        params::FilterRouting routing { params::FilterRouting::Single };
         AdsrLinear amp;
         AdsrLinear fEnv;
         AdsrLinear env3;
@@ -174,6 +188,8 @@ namespace bacillum::dsp
         float filterEnvAmount  { 0.0f };
         float filterVelAmount  { 0.0f };
         float filterDrive01    { 0.0f };
+        float filter2CutoffBase{ 8000.0f };
+        float filter2Res01Base { 0.1f };
 
         // LFO1 mod depths (dedicated routings; matrix adds on top)
         float lfo1ToCutoffOct { 0.0f };
