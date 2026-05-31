@@ -53,6 +53,11 @@ namespace bacillum
         const dsp::AudioVizBuffer& getVizBuffer() const noexcept { return vizBuffer; }
         double getCurrentSampleRate() const noexcept { return currentSampleRate; }
 
+        // Live modulation read-outs for the editor's knob rings.
+        [[nodiscard]] float getVizCutoffHz() const noexcept { return vizCutoffHz.load(); }
+        [[nodiscard]] float getVizRes01()    const noexcept { return vizRes01.load(); }
+        [[nodiscard]] bool  getVizActive()   const noexcept { return vizActive.load(); }
+
     private:
         void handleMidiEvent (const juce::MidiMessage& m) noexcept;
         void snapshotVoiceParams (dsp::VoiceParams& out) const noexcept;
@@ -225,6 +230,11 @@ namespace bacillum
         float currentAftertouch01  { 0.0f };
         float currentBpm           { 120.0f };  // from host playhead, fallback 120
         float currentLfo3Value     { 0.0f };    // global LFO, one value per block
+
+        // GUI modulation rings (audio → UI, lock-free).
+        std::atomic<float> vizCutoffHz { 12000.0f };
+        std::atomic<float> vizRes01    { 0.1f };
+        std::atomic<bool>  vizActive   { false };
 
         // Last applied unison config — used to avoid re-applying every block.
         int   lastUnisonCount { 1 };

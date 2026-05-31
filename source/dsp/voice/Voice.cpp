@@ -470,6 +470,10 @@ namespace bacillum::dsp
                 ladder.setResonance01(resEff);
                 filterDrive01 = juce::jlimit(0.0f, 1.0f, filterDrive01Base + dDrive);
 
+                // Publish post-mod values for the editor's modulation rings.
+                vizCutoffHz = juce::jlimit(20.0f, 20000.0f, cutoff);
+                vizRes01    = resEff;
+
                 // Source levels.
                 osc1Level  = juce::jlimit(0.0f, 1.5f, osc1LevelBase  + dL1);
                 osc2Level  = juce::jlimit(0.0f, 1.5f, osc2LevelBase  + dL2);

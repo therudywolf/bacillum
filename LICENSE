@@ -1,0 +1,19 @@
+Bacillum — virtual-analog synthesizer
+Copyright (c) 2026 therudywolf. All rights reserved.
+
+The source code in this repository is proprietary and provided for reference.
+No licence to use, copy, modify, or distribute it is granted by default;
+contact the author for permissions.
+
+THIRD-PARTY DEPENDENCIES
+------------------------
+This project builds against JUCE (https://juce.com), which is dual-licensed
+under the GNU GPLv3 and a Steinberg/JUCE commercial licence. Because Bacillum
+links JUCE, any *binary redistribution* must comply with JUCE's GPLv3 terms
+unless the author holds a commercial JUCE licence. The VST3 SDK pulled in by
+JUCE is likewise dual-licensed (GPLv3 / Steinberg proprietary).
+
+Unit tests build against Catch2 (https://github.com/catchorg/Catch2),
+licensed under the Boost Software License 1.0.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

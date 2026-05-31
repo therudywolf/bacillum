@@ -147,6 +147,10 @@ namespace bacillum::dsp
         [[nodiscard]] int  getMidiNote() const noexcept { return midiNote; }
         [[nodiscard]] juce::int64 getStartStamp() const noexcept { return startStamp; }
 
+        // Live modulated values for GUI rings (post-modulation, control-rate).
+        [[nodiscard]] float getVizCutoffHz() const noexcept { return vizCutoffHz; }
+        [[nodiscard]] float getVizRes01()    const noexcept { return vizRes01; }
+
         void setStartStamp(juce::int64 s) noexcept { startStamp = s; }
 
     private:
@@ -220,6 +224,8 @@ namespace bacillum::dsp
         float lfo3Value       { 0.0f };
         float randomValue     { 0.0f };   // per-note random, set on noteOn
         float matrixAmp       { 1.0f };   // amp multiplier from matrix (control-rate)
+        float vizCutoffHz     { 12000.0f };// post-mod cutoff for the GUI ring
+        float vizRes01        { 0.1f };    // post-mod resonance for the GUI ring
 
         // Pitch
         int   midiNote        { -1 };

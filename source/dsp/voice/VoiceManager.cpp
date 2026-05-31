@@ -211,4 +211,27 @@ namespace bacillum::dsp
         for (auto& v : voices)
             v.renderAdd(outL, outR, startSample, numSamples);
     }
+
+    void VoiceManager::getViz(float& cutoffHz, float& res01, bool& active) const noexcept
+    {
+        const Voice* best = nullptr;
+        float loudest = -1.0f;
+        for (const auto& v : voices)
+            if (v.isPlaying() && v.envLevel() > loudest)
+            {
+                loudest = v.envLevel();
+                best = &v;
+            }
+
+        if (best != nullptr)
+        {
+            cutoffHz = best->getVizCutoffHz();
+            res01    = best->getVizRes01();
+            active   = true;
+        }
+        else
+        {
+            active = false;
+        }
+    }
 }

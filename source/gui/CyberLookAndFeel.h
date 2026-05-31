@@ -180,6 +180,28 @@ namespace bacillum::gui
                                                           juce::PathStrokeType::rounded),
                               juce::AffineTransform::rotation (angle).translated (cx, cy));
             }
+
+            // --- live modulation ring (set via slider properties by the editor) ---
+            if (slider.getProperties().getWithDefault ("hasMod", false))
+            {
+                const float modNorm  = juce::jlimit (0.0f, 1.0f,
+                                          (float) slider.getProperties().getWithDefault ("modNorm", (double) sliderPos));
+                const float modAngle = rotaryStart + modNorm * (rotaryEnd - rotaryStart);
+
+                // Translucent blood-red arc from the base value to the modulated value…
+                juce::Path modArc;
+                modArc.addCentredArc (cx, cy, radius, radius, 0.0f, angle, modAngle, true);
+                g.setColour (Palette::blood().withAlpha (0.55f));
+                g.strokePath (modArc, juce::PathStrokeType (3.0f, juce::PathStrokeType::curved,
+                                                                  juce::PathStrokeType::rounded));
+                // …plus a bright tick at the modulated position.
+                juce::Path tick;
+                tick.startNewSubPath (0.0f, -radius - 1.0f);
+                tick.lineTo          (0.0f, -radius + 4.0f);
+                g.setColour (Palette::blood());
+                g.strokePath (tick, juce::PathStrokeType (2.0f),
+                              juce::AffineTransform::rotation (modAngle).translated (cx, cy));
+            }
         }
 
         // === ComboBox — angular dropdown ====================================

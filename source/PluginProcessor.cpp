@@ -390,6 +390,14 @@ namespace bacillum
         float* R = numChans > 1 ? buffer.getWritePointer (1) : L;
         voiceManager.render (L, R, start, numSamples);
 
+        // Publish live modulation for the editor's knob rings.
+        {
+            float c = 12000.0f, r = 0.1f; bool a = false;
+            voiceManager.getViz (c, r, a);
+            if (a) { vizCutoffHz.store (c); vizRes01.store (r); }
+            vizActive.store (a);
+        }
+
         // The voice already applies its own pan; master pan is rolled into per-voice
         // via VoiceParams::pan, so the bus only needs master gain smoothing.
         const float targetGain = juce::Decibels::decibelsToGain (pMasterGain->load(), -60.0f);

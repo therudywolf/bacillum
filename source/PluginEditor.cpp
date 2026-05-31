@@ -220,7 +220,7 @@ namespace bacillum
             if (isShowing()) keyboard.grabKeyboardFocus();
         });
 
-        startTimerHz (2);
+        startTimerHz (30);
     }
 
     PluginEditor::~PluginEditor()
@@ -258,8 +258,27 @@ namespace bacillum
 
     void PluginEditor::timerCallback()
     {
-        caretOn = ! caretOn;
-        repaint (0, 0, getWidth(), kHeaderH + 2);
+        // ~30 Hz: blink the header caret on a slow divider.
+        if (++tickCount % 15 == 0)
+        {
+            caretOn = ! caretOn;
+            repaint (0, 0, getWidth(), kHeaderH + 2);
+        }
+
+        // Live modulation rings on the filter knobs.
+        const bool active = processor.getVizActive();
+        if (auto* cut = processor.getAPVTS().getParameter (params::ids::filterCutoff))
+        {
+            filterCutoff.slider.getProperties().set ("hasMod", active);
+            filterCutoff.slider.getProperties().set ("modNorm", (double) cut->convertTo0to1 (processor.getVizCutoffHz()));
+            filterCutoff.slider.repaint();
+        }
+        if (auto* res = processor.getAPVTS().getParameter (params::ids::filterRes))
+        {
+            filterRes.slider.getProperties().set ("hasMod", active);
+            filterRes.slider.getProperties().set ("modNorm", (double) res->convertTo0to1 (processor.getVizRes01()));
+            filterRes.slider.repaint();
+        }
     }
 
     bool PluginEditor::keyPressed (const juce::KeyPress& key)    { return keyboard.keyPressed (key); }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(Bacillum
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "Virtual-Analog polyphonic synthesizer"
     LANGUAGES C CXX)
 

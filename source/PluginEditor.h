@@ -173,6 +173,7 @@ namespace bacillum
 
         std::array<Section, 24> sections {};
         bool caretOn { true };
+        int  tickCount { 0 };   // 30 Hz timer; caret blinks on a slow divider
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
     };

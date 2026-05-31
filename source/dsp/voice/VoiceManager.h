@@ -31,6 +31,10 @@ namespace bacillum::dsp
 
         void render(float* outL, float* outR, int startSample, int numSamples) noexcept;
 
+        // Representative live modulation for GUI rings: reports the loudest
+        // active voice's post-mod cutoff / resonance. active=false if silent.
+        void getViz(float& cutoffHz, float& res01, bool& active) const noexcept;
+
     private:
         Voice* findVoiceForNoteOn(int midiNote, bool allowSameNoteRetrigger) noexcept;
         void   triggerOneVoice(int midiNote, float vel, float centsOffset,
